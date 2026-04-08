@@ -15,120 +15,59 @@ import java.util.stream.Stream;
 /**
  * Generador de reportes en formato PDF usando OpenPDF (fork libre de iText).
  *
- * Estructura del PDF:
- * - Titulo y metadata
- * - Datos del filtro aplicado
- * - Tabla de insumos con entradas / salidas / stock
- * - Seccion de resumen con totales
+ * Tipos soportados:
+ *   GENERAL / ENTRADAS / SALIDAS / STOCK_BAJO  → tabla de inventario
+ *   ROTACION                                   → tabla con índice, cobertura y categoría
+ *   CONSUMO_PROMEDIO                           → tabla con tasas y tendencia
+ *   PEDIDOS                                    → tabla con semáforo visual
  */
 @Slf4j
 public class ReportePdfGenerator {
 
-    private static final Color COLOR_HEADER = new Color(52, 73, 94); // azul oscuro
-    private static final Color COLOR_ALERTA = new Color(231, 76, 60); // rojo stock bajo
-    private static final Color COLOR_GRIS = new Color(236, 240, 241); // gris claro filas pares
+    // ── Paleta de colores ────────────────────────────────────────────────
+    private static final Color C_HEADER   = new Color(52,  73,  94);   // azul oscuro
+    private static final Color C_ALERTA   = new Color(231, 76,  60);   // rojo crítico
+    private static final Color C_WARN     = new Color(211, 84,  0);    // naranja bajo
+    private static final Color C_OK       = new Color(39,  174, 96);   // verde OK
+    private static final Color C_GRIS     = new Color(236, 240, 241);  // fila par
+    private static final Color C_VERDE    = new Color(39,  174, 96);
+    private static final Color C_AMARILLO = new Color(241, 196, 15);
+    private static final Color C_ROJO     = new Color(231, 76,  60);
+
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    private ReportePdfGenerator() {
-    }
+    private ReportePdfGenerator() { }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  PUNTO DE ENTRADA
+    // ══════════════════════════════════════════════════════════════════════
 
     public static ByteArrayInputStream generar(ReporteDTO.Response reporte) {
-        Document document = new Document(PageSize.A4, 40, 40, 60, 40);
+        Document doc = new Document(PageSize.A4.rotate(), 36, 36, 50, 36); // horizontal para más columnas
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         try {
-            PdfWriter writer = PdfWriter.getInstance(document, out);
-            document.open();
+            PdfWriter.getInstance(doc, out);
+            doc.open();
 
-            // ── Titulo ────────────────────────────────────────────────────
-            Font fontTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, Color.WHITE);
-            PdfPTable header = new PdfPTable(1);
-            header.setWidthPercentage(100);
+            String tipo = reporte.getResumen().getTipoInforme();
 
-            PdfPCell celdaTitulo = new PdfPCell(
-                    new Phrase("REPORTE DE INVENTARIO", fontTitulo));
-            celdaTitulo.setBackgroundColor(COLOR_HEADER);
-            celdaTitulo.setPadding(12);
-            celdaTitulo.setBorder(Rectangle.NO_BORDER);
-            celdaTitulo.setHorizontalAlignment(Element.ALIGN_CENTER);
-            header.addCell(celdaTitulo);
-            document.add(header);
+            // Título
+            escribirTitulo(doc, tipo);
+            escribirInfoFiltro(doc, reporte.getResumen());
 
-            // ── Info del filtro ────────────────────────────────────────────
-            document.add(Chunk.NEWLINE);
-            Font fontInfo = FontFactory.getFont(FontFactory.HELVETICA, 9, Color.DARK_GRAY);
-            ReporteDTO.ResumenResponse resumen = reporte.getResumen();
-
-            document.add(new Paragraph("Tipo de informe: " + resumen.getTipoInforme(), fontInfo));
-            document.add(new Paragraph(
-                    "Periodo: " + resumen.getFechaInicio() + " al " + resumen.getFechaFin(), fontInfo));
-            document.add(new Paragraph(
-                    "Generado: " + LocalDate.now().format(FMT), fontInfo));
-            document.add(Chunk.NEWLINE);
-
-            // ── Tabla de datos ─────────────────────────────────────────────
-            PdfPTable tabla = new PdfPTable(6);
-            tabla.setWidthPercentage(100);
-            tabla.setWidths(new float[] { 4f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f });
-            tabla.setSpacingBefore(8f);
-
-            // Encabezados
-            String[] columnas = { "Insumo", "Unidad", "Entradas", "Salidas", "Stock", "Estado" };
-            Font fontEncabezado = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Color.WHITE);
-
-            Stream.of(columnas).forEach(col -> {
-                PdfPCell cell = new PdfPCell(new Phrase(col, fontEncabezado));
-                cell.setBackgroundColor(COLOR_HEADER);
-                cell.setPadding(6);
-                cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                tabla.addCell(cell);
-            });
-
-            // Filas de datos
-            Font fontDato = FontFactory.getFont(FontFactory.HELVETICA, 8);
-            Font fontAlerta = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, COLOR_ALERTA);
-
-            boolean filaAlterna = false;
-            for (ReporteDTO.ItemResponse item : reporte.getItems()) {
-                Color bgFila = filaAlterna ? COLOR_GRIS : Color.WHITE;
-                Font font = item.isStockBajo() ? fontAlerta : fontDato;
-
-                agregarCelda(tabla, item.getNombreInsumo(), bgFila, font, Element.ALIGN_LEFT);
-                agregarCelda(tabla, item.getUnidadMedida(), bgFila, font, Element.ALIGN_CENTER);
-                agregarCelda(tabla, String.valueOf(item.getEntradas()), bgFila, font, Element.ALIGN_CENTER);
-                agregarCelda(tabla, String.valueOf(item.getSalidas()), bgFila, font, Element.ALIGN_CENTER);
-                agregarCelda(tabla, String.valueOf(item.getStockActual()), bgFila, font, Element.ALIGN_CENTER);
-                agregarCelda(tabla,
-                        item.getStockActual() == 0 ? "CRITICO" : item.isStockBajo() ? "BAJO" : "OK",
-                        bgFila, font, Element.ALIGN_CENTER);
-
-                filaAlterna = !filaAlterna;
+            // Tabla según tipo
+            switch (tipo) {
+                case "ROTACION"         -> escribirTablaRotacion(doc, reporte);
+                case "CONSUMO_PROMEDIO" -> escribirTablaConsumo(doc, reporte);
+                case "PEDIDOS"          -> escribirTablaPedidos(doc, reporte);
+                default                 -> escribirTablaInventario(doc, reporte);
             }
-            document.add(tabla);
 
-            // ── Resumen ────────────────────────────────────────────────────
-            document.add(Chunk.NEWLINE);
-            Font fontResumenTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
-            document.add(new Paragraph("RESUMEN", fontResumenTitulo));
-            document.add(Chunk.NEWLINE);
+            // Resumen
+            escribirResumen(doc, reporte.getResumen(), tipo);
 
-            PdfPTable tablaResumen = new PdfPTable(2);
-            tablaResumen.setWidthPercentage(50);
-            tablaResumen.setHorizontalAlignment(Element.ALIGN_LEFT);
-
-            Font fontResumen = FontFactory.getFont(FontFactory.HELVETICA, 9);
-            agregarFilaResumen(tablaResumen, "Total insumos:", String.valueOf(resumen.getTotalInsumos()), fontResumen);
-            agregarFilaResumen(tablaResumen, "Total entradas:", String.valueOf(resumen.getTotalEntradas()),
-                    fontResumen);
-            agregarFilaResumen(tablaResumen, "Total salidas:", String.valueOf(resumen.getTotalSalidas()), fontResumen);
-            agregarFilaResumen(tablaResumen, "Insumos stock bajo:", String.valueOf(resumen.getInsumosConStockBajo()),
-                    fontResumen);
-            agregarFilaResumen(tablaResumen, "Insumos sin stock:", String.valueOf(resumen.getInsumosConStockCero()),
-                    fontResumen);
-
-            document.add(tablaResumen);
-            document.close();
-
+            doc.close();
         } catch (Exception e) {
             log.error("Error generando PDF: {}", e.getMessage(), e);
         }
@@ -136,25 +75,337 @@ public class ReportePdfGenerator {
         return new ByteArrayInputStream(out.toByteArray());
     }
 
-    private static void agregarCelda(PdfPTable tabla, String texto,
-            Color bg, Font font, int alineacion) {
-        PdfPCell cell = new PdfPCell(new Phrase(texto != null ? texto : "", font));
-        cell.setBackgroundColor(bg);
-        cell.setPadding(4);
-        cell.setHorizontalAlignment(alineacion);
-        tabla.addCell(cell);
+    // ══════════════════════════════════════════════════════════════════════
+    //  SECCIONES COMUNES
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static void escribirTitulo(Document doc, String tipo) throws DocumentException {
+        String titulo = switch (tipo) {
+            case "ROTACION"         -> "REPORTE DE ROTACIÓN DE INVENTARIO";
+            case "CONSUMO_PROMEDIO" -> "REPORTE DE CONSUMO PROMEDIO";
+            case "PEDIDOS"          -> "REPORTE DE PEDIDOS";
+            case "STOCK_BAJO"       -> "REPORTE DE STOCK BAJO / CRÍTICO";
+            case "ENTRADAS"         -> "REPORTE DE ENTRADAS";
+            case "SALIDAS"          -> "REPORTE DE SALIDAS";
+            default                 -> "REPORTE GENERAL DE INVENTARIO";
+        };
+
+        Font fTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, Color.WHITE);
+        PdfPTable tblTitulo = new PdfPTable(1);
+        tblTitulo.setWidthPercentage(100);
+        PdfPCell celda = new PdfPCell(new Phrase(titulo, fTitulo));
+        celda.setBackgroundColor(C_HEADER);
+        celda.setPadding(12);
+        celda.setBorder(Rectangle.NO_BORDER);
+        celda.setHorizontalAlignment(Element.ALIGN_CENTER);
+        tblTitulo.addCell(celda);
+        doc.add(tblTitulo);
+        doc.add(Chunk.NEWLINE);
     }
 
-    private static void agregarFilaResumen(PdfPTable tabla,
-            String etiqueta, String valor, Font font) {
-        PdfPCell cEtiqueta = new PdfPCell(new Phrase(etiqueta, font));
-        cEtiqueta.setBorder(Rectangle.NO_BORDER);
-        cEtiqueta.setPadding(3);
-        tabla.addCell(cEtiqueta);
+    private static void escribirInfoFiltro(Document doc,
+                                            ReporteDTO.ResumenResponse res) throws DocumentException {
+        Font f = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8, Color.DARK_GRAY);
+        doc.add(new Paragraph("Periodo: " + res.getFechaInicio() + " al " + res.getFechaFin(), f));
+        doc.add(new Paragraph("Generado: " + LocalDate.now().format(FMT), f));
+        doc.add(Chunk.NEWLINE);
+    }
 
-        PdfPCell cValor = new PdfPCell(new Phrase(valor, font));
-        cValor.setBorder(Rectangle.NO_BORDER);
-        cValor.setPadding(3);
-        tabla.addCell(cValor);
+    private static void escribirResumen(Document doc,
+                                         ReporteDTO.ResumenResponse res,
+                                         String tipo) throws DocumentException {
+        doc.add(Chunk.NEWLINE);
+        Font fTit = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+        doc.add(new Paragraph("RESUMEN", fTit));
+        doc.add(Chunk.NEWLINE);
+
+        PdfPTable tbl = new PdfPTable(2);
+        tbl.setWidthPercentage(45);
+        tbl.setHorizontalAlignment(Element.ALIGN_LEFT);
+        Font f = FontFactory.getFont(FontFactory.HELVETICA, 9);
+
+        switch (tipo) {
+            case "ROTACION" -> {
+                fila(tbl, "Total insumos analizados:", str(res.getTotalInsumos()), f);
+                fila(tbl, "Alta rotación (≥10 u/mes):", str(res.getInsumosAltaRotacion()), f);
+                fila(tbl, "Stock muerto (sin movimiento):", str(res.getInsumosStockMuerto()), f);
+            }
+            case "CONSUMO_PROMEDIO" -> {
+                fila(tbl, "Insumos con consumo:", str(res.getTotalInsumos()), f);
+                fila(tbl, "Tendencia creciente:", str(res.getInsumosTendenciaCreciente()), f);
+                fila(tbl, "Tendencia decreciente:", str(res.getInsumosTendenciaDecreciente()), f);
+            }
+            case "PEDIDOS" -> {
+                fila(tbl, "Total pedidos:", str(res.getTotalPedidos()), f);
+                fila(tbl, "🟢 A tiempo:", str(res.getPedidosVerdes()), f);
+                fila(tbl, "🟡 Próximos:", str(res.getPedidosAmarillos()), f);
+                fila(tbl, "🔴 Retrasados:", str(res.getPedidosRojos()), f);
+                fila(tbl, "Entregados:", str(res.getPedidosEntregados()), f);
+                fila(tbl, "Cancelados:", str(res.getPedidosCancelados()), f);
+            }
+            default -> {
+                fila(tbl, "Total insumos:", str(res.getTotalInsumos()), f);
+                fila(tbl, "Total entradas:", str(res.getTotalEntradas()), f);
+                fila(tbl, "Total salidas:", str(res.getTotalSalidas()), f);
+                fila(tbl, "Stock bajo:", str(res.getInsumosConStockBajo()), f);
+                fila(tbl, "Sin stock:", str(res.getInsumosConStockCero()), f);
+            }
+        }
+
+        doc.add(tbl);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  TABLA — INVENTARIO (GENERAL/ENTRADAS/SALIDAS/STOCK_BAJO)
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static void escribirTablaInventario(Document doc,
+                                                 ReporteDTO.Response r) throws DocumentException {
+        if (r.getItems() == null || r.getItems().isEmpty()) {
+            doc.add(new Paragraph("No hay datos para el periodo seleccionado.",
+                    FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 9)));
+            return;
+        }
+
+        PdfPTable tbl = new PdfPTable(7);
+        tbl.setWidthPercentage(100);
+        tbl.setWidths(new float[]{3.5f, 1.2f, 1.2f, 1.2f, 1.2f, 1.2f, 1.2f});
+        tbl.setSpacingBefore(6f);
+
+        encabezados(tbl, "Insumo", "Tipo", "Unidad", "Entradas", "Salidas", "Stock", "Estado");
+
+        Font fD = FontFactory.getFont(FontFactory.HELVETICA, 8);
+        Font fA = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, C_ALERTA);
+        boolean alt = false;
+
+        for (ReporteDTO.ItemResponse item : r.getItems()) {
+            Color bg   = alt ? C_GRIS : Color.WHITE;
+            Font  font = item.isStockCero() ? fA : (item.isStockBajo() ? fA : fD);
+
+            String estado = item.isStockCero() ? "CRITICO"
+                           : item.isStockBajo() ? "BAJO" : "OK";
+            Color cEstado = item.isStockCero() ? C_ALERTA
+                           : item.isStockBajo() ? C_WARN : C_OK;
+
+            celda(tbl, item.getNombreInsumo(),        bg, fD, Element.ALIGN_LEFT);
+            celda(tbl, nulo(item.getTipo()),           bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, item.getUnidadMedida(),         bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, String.valueOf(item.getEntradas()), bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, String.valueOf(item.getSalidas()),  bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, String.valueOf(item.getStockActual()), bg, font, Element.ALIGN_CENTER);
+            celdaColor(tbl, estado, bg, cEstado);
+
+            alt = !alt;
+        }
+        doc.add(tbl);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  TABLA — ROTACIÓN
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static void escribirTablaRotacion(Document doc,
+                                               ReporteDTO.Response r) throws DocumentException {
+        if (r.getRotacion() == null || r.getRotacion().isEmpty()) {
+            doc.add(new Paragraph("No hay datos de rotación para el periodo seleccionado.",
+                    FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 9)));
+            return;
+        }
+
+        PdfPTable tbl = new PdfPTable(7);
+        tbl.setWidthPercentage(100);
+        tbl.setWidths(new float[]{3f, 1f, 1.2f, 1.3f, 1.5f, 1.5f, 2f});
+        tbl.setSpacingBefore(6f);
+
+        encabezados(tbl, "Insumo", "Stock", "Salidas", "Índice Rot.", "Días Cobertura", "Categoría", "Observación");
+
+        Font fD = FontFactory.getFont(FontFactory.HELVETICA, 8);
+        boolean alt = false;
+
+        for (ReporteDTO.RotacionItem item : r.getRotacion()) {
+            Color bg = alt ? C_GRIS : Color.WHITE;
+
+            Color cCat = switch (item.getCategoriaRotacion()) {
+                case "Alta rotación"  -> C_OK;
+                case "Media rotación" -> new Color(52, 152, 219); // azul
+                case "Sin movimiento" -> C_ALERTA;
+                default               -> C_WARN;
+            };
+
+            celda(tbl, item.getNombreInsumo(),                        bg, fD, Element.ALIGN_LEFT);
+            celda(tbl, String.valueOf(item.getStockActual()),          bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, String.valueOf(item.getTotalSalidas()),         bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, item.getIndiceRotacion() + " u/mes",           bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, item.getDiasCobertura() != null
+                    ? item.getDiasCobertura() + " días" : "∞",        bg, fD, Element.ALIGN_CENTER);
+            celdaColor(tbl, item.getCategoriaRotacion(),               bg, cCat);
+            celda(tbl, item.isStockMuerto() ? "⚠ Stock muerto" : "",  bg, fD, Element.ALIGN_CENTER);
+
+            alt = !alt;
+        }
+        doc.add(tbl);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  TABLA — CONSUMO PROMEDIO
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static void escribirTablaConsumo(Document doc,
+                                              ReporteDTO.Response r) throws DocumentException {
+        if (r.getConsumo() == null || r.getConsumo().isEmpty()) {
+            doc.add(new Paragraph("No hay consumo registrado para el periodo seleccionado.",
+                    FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 9)));
+            return;
+        }
+
+        PdfPTable tbl = new PdfPTable(8);
+        tbl.setWidthPercentage(100);
+        tbl.setWidths(new float[]{3f, 1f, 1.2f, 1.3f, 1.3f, 1.3f, 1.5f, 1.5f});
+        tbl.setSpacingBefore(6f);
+
+        encabezados(tbl, "Insumo", "Stock", "Total Consumo",
+                "Diario", "Semanal", "Mensual", "Tendencia", "Días Cobertura");
+
+        Font fD = FontFactory.getFont(FontFactory.HELVETICA, 8);
+        boolean alt = false;
+
+        for (ReporteDTO.ConsumoItem item : r.getConsumo()) {
+            Color bg = alt ? C_GRIS : Color.WHITE;
+
+            Color cTend = switch (item.getTendencia()) {
+                case "Creciente"   -> C_ALERTA;  // más consumo = posible riesgo de desabasto
+                case "Decreciente" -> C_OK;
+                case "Estable"     -> new Color(52, 152, 219);
+                default            -> Color.GRAY;
+            };
+
+            celda(tbl, item.getNombreInsumo(),                             bg, fD, Element.ALIGN_LEFT);
+            celda(tbl, String.valueOf(item.getStockActual()),              bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, item.getTotalConsumo() + " " + item.getUnidadMedida(), bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, item.getConsumoDiario() + " " + item.getUnidadMedida(), bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, item.getConsumoSemanal() + " " + item.getUnidadMedida(), bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, item.getConsumoMensual() + " " + item.getUnidadMedida(), bg, fD, Element.ALIGN_CENTER);
+            celdaColor(tbl, item.getTendencia(), bg, cTend);
+            celda(tbl, item.getDiasCoberturaEstimados() != null
+                    ? item.getDiasCoberturaEstimados() + " días" : "—",   bg, fD, Element.ALIGN_CENTER);
+
+            alt = !alt;
+        }
+        doc.add(tbl);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  TABLA — PEDIDOS
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static void escribirTablaPedidos(Document doc,
+                                              ReporteDTO.Response r) throws DocumentException {
+        if (r.getPedidos() == null || r.getPedidos().isEmpty()) {
+            doc.add(new Paragraph("No hay pedidos para el periodo seleccionado.",
+                    FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 9)));
+            return;
+        }
+
+        PdfPTable tbl = new PdfPTable(8);
+        tbl.setWidthPercentage(100);
+        tbl.setWidths(new float[]{1.5f, 2.5f, 2f, 1.8f, 1.8f, 1f, 1.5f, 1.5f});
+        tbl.setSpacingBefore(6f);
+
+        encabezados(tbl, "# Pedido", "Colegio", "Estado", "Fecha Pedido",
+                "F. Entrega", "Días", "Semáforo", "% Cumpl.");
+
+        Font fD = FontFactory.getFont(FontFactory.HELVETICA, 8);
+        boolean alt = false;
+
+        for (ReporteDTO.PedidoItem item : r.getPedidos()) {
+            Color bg = alt ? C_GRIS : Color.WHITE;
+
+            Color cSem = switch (item.getSemaforo()) {
+                case "VERDE"     -> C_VERDE;
+                case "AMARILLO"  -> C_AMARILLO;
+                case "ROJO"      -> C_ROJO;
+                case "ENTREGADO" -> C_OK;
+                default          -> Color.GRAY;
+            };
+
+            String diasText = item.getDiasRestantes() != null
+                    ? (item.getDiasRestantes() < 0
+                            ? "-" + Math.abs(item.getDiasRestantes())
+                            : "+" + item.getDiasRestantes())
+                    : "—";
+
+            String pctText  = item.getPorcentajeCumplimiento() != null
+                    ? item.getPorcentajeCumplimiento() + "%"
+                    : "—";
+
+            celda(tbl, nulo(item.getNumeroPedido()),          bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, nulo(item.getColegio()),                bg, fD, Element.ALIGN_LEFT);
+            celda(tbl, nulo(item.getEstadoDescripcion()),      bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, fechaCorta(item.getFechaPedido()),      bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, nulo(item.getFechaEstimadaEntrega()),   bg, fD, Element.ALIGN_CENTER);
+            celda(tbl, diasText,                               bg, fD, Element.ALIGN_CENTER);
+            celdaColor(tbl, item.getSemaforoDescripcion(),     bg, cSem);
+            celda(tbl, pctText,                                bg, fD, Element.ALIGN_CENTER);
+
+            alt = !alt;
+        }
+        doc.add(tbl);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  HELPERS DE RENDERIZADO
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static void encabezados(PdfPTable tbl, String... cols) {
+        Font f = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, Color.WHITE);
+        Stream.of(cols).forEach(col -> {
+            PdfPCell c = new PdfPCell(new Phrase(col, f));
+            c.setBackgroundColor(C_HEADER);
+            c.setPadding(5);
+            c.setHorizontalAlignment(Element.ALIGN_CENTER);
+            tbl.addCell(c);
+        });
+    }
+
+    private static void celda(PdfPTable tbl, String texto,
+                               Color bg, Font f, int align) {
+        PdfPCell c = new PdfPCell(new Phrase(texto != null ? texto : "", f));
+        c.setBackgroundColor(bg);
+        c.setPadding(4);
+        c.setHorizontalAlignment(align);
+        tbl.addCell(c);
+    }
+
+    /** Celda con color de texto destacado (para estado/semáforo). */
+    private static void celdaColor(PdfPTable tbl, String texto,
+                                    Color bg, Color colorTexto) {
+        Font f = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, colorTexto);
+        PdfPCell c = new PdfPCell(new Phrase(texto != null ? texto : "", f));
+        c.setBackgroundColor(bg);
+        c.setPadding(4);
+        c.setHorizontalAlignment(Element.ALIGN_CENTER);
+        tbl.addCell(c);
+    }
+
+    private static void fila(PdfPTable tbl, String etiqueta, String valor, Font f) {
+        PdfPCell cE = new PdfPCell(new Phrase(etiqueta, f));
+        cE.setBorder(Rectangle.NO_BORDER);
+        cE.setPadding(3);
+        tbl.addCell(cE);
+
+        Font fV = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
+        PdfPCell cV = new PdfPCell(new Phrase(valor, fV));
+        cV.setBorder(Rectangle.NO_BORDER);
+        cV.setPadding(3);
+        tbl.addCell(cV);
+    }
+
+    private static String nulo(String s)  { return s != null ? s : "—"; }
+    private static String str(Integer i)  { return i != null ? String.valueOf(i) : "—"; }
+
+    /** Extrae "yyyy-MM-dd" de un "yyyy-MM-dd HH:mm:ss". */
+    private static String fechaCorta(String dt) {
+        if (dt == null) return "—";
+        return dt.length() >= 10 ? dt.substring(0, 10) : dt;
     }
 }

@@ -31,4 +31,16 @@ public interface UniformeRepository extends JpaRepository<Uniforme, Long> {
                 WHERE u.id = :id
             """)
     java.util.Optional<Uniforme> findByIdWithInsumos(@Param("id") Long id);
+
+    /**
+     * Carga múltiples uniformes con sus insumos en un solo query — evita N+1
+     * en el cálculo de pedidos multi-prenda.
+     */
+    @Query("""
+                SELECT DISTINCT u FROM Uniforme u
+                LEFT JOIN FETCH u.insumosRequeridos ir
+                LEFT JOIN FETCH ir.insumo
+                WHERE u.id IN :ids
+            """)
+    List<Uniforme> findByIdInWithInsumos(@Param("ids") List<Long> ids);
 }
