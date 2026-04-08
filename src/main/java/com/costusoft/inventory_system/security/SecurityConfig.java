@@ -88,6 +88,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/calculadora/**").hasAnyRole("ADMIN", "USER", "BODEGA")
                         .requestMatchers("/api/prediccion/**").hasAnyRole("ADMIN", "USER", "BODEGA")
 
+                        // Pedidos: todos los roles pueden ver; USER/ADMIN crean/editan;
+                        // BODEGA gestiona la producción y entrega (control granular en @PreAuthorize)
+                        .requestMatchers("/api/pedidos/**").hasAnyRole("ADMIN", "USER", "BODEGA")
+
                         // Cualquier otra ruta requiere autenticación
                         .anyRequest().authenticated())
 
