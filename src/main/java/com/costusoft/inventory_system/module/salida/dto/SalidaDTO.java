@@ -8,11 +8,13 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * DTOs del modulo Salida.
+ * DTOs del módulo Salida.
  *
- * Una salida descuenta stock. Si cualquier insumo no tiene
- * stock suficiente, se lanza StockInsuficienteException
- * y NINGUN descuento persiste (transaccion atomica).
+ * Flujo BODEGA:
+ *   - Request       → USER/ADMIN crea solicitud PENDIENTE (sin descontar stock)
+ *   - RechazarRequest → BODEGA/ADMIN rechaza con motivo
+ *   - Response      → incluye estado, confirmadaPor, motivoRechazo para que el
+ *                     frontend actualice la UI sin una segunda consulta
  */
 public class SalidaDTO {
 
@@ -57,6 +59,19 @@ public class SalidaDTO {
         private Integer cantidad;
     }
 
+    // ── Rechazar Request ─────────────────────────────────────────────────
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RechazarRequest {
+
+        @NotBlank(message = "El motivo de rechazo es obligatorio")
+        @Size(max = 500, message = "El motivo no puede superar 500 caracteres")
+        private String motivo;
+    }
+
     // ── Response ─────────────────────────────────────────────────────────
 
     @Getter
@@ -68,6 +83,13 @@ public class SalidaDTO {
         private final String descripcion;
         private final String colegioNombre;
         private final List<DetalleResponse> detalles;
+
+        // ── Campos de flujo de aprobación ──────────────────────────────
+        private final String estado;
+        private final String confirmadaPor;
+        private final String motivoRechazo;
+        private final String confirmadaAt;
+
         private final String createdAt;
     }
 

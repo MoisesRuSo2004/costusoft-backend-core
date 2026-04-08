@@ -55,7 +55,11 @@ public class Usuario extends AuditableEntity {
 
     // ── Enum de roles ───────────────────────────────────────────────────
     public enum Rol {
+        /** Acceso total al sistema: usuarios, proveedores, stock, reportes. */
         ADMIN,
-        USER
+        /** Secretaria/operador: crea solicitudes de entradas y salidas. */
+        USER,
+        /** Operador de almacén: confirma o rechaza solicitudes PENDIENTES. No crea solicitudes. */
+        BODEGA
     }
 }

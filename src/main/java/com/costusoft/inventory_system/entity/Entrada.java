@@ -5,6 +5,7 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,9 +14,10 @@ import com.costusoft.inventory_system.shared.domain.AuditableEntity;
 /**
  * Entidad que representa una entrada de insumos al inventario.
  *
- * Cada entrada tiene uno o más detalles que especifican qué insumos
- * y en qué cantidades ingresaron. El stock de los insumos se actualiza
- * al guardar/modificar/eliminar una entrada.
+ * Ciclo de vida con rol BODEGA:
+ *   PENDIENTE  → USER/ADMIN crea la solicitud. Stock intacto.
+ *   CONFIRMADA → BODEGA/ADMIN verifica físicamente y aprueba. Stock incrementado.
+ *   RECHAZADA  → BODEGA/ADMIN rechaza con motivo. Stock sin cambios.
  */
 @Entity
 @Table(name = "entradas")
@@ -54,6 +56,33 @@ public class Entrada extends AuditableEntity {
     @OneToMany(mappedBy = "entrada", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<DetalleEntrada> detalles = new ArrayList<>();
+
+    // ── Campos de flujo de aprobación ───────────────────────────────────
+
+    /** Estado actual del movimiento. Inicia siempre en PENDIENTE. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado", nullable = false, length = 20)
+    @Builder.Default
+    private EstadoMovimiento estado = EstadoMovimiento.PENDIENTE;
+
+    /** Username del BODEGA/ADMIN que confirmó o rechazó la solicitud. */
+    @Column(name = "confirmada_por", length = 50)
+    private String confirmadaPor;
+
+    /** Motivo del rechazo. Solo presente cuando estado = RECHAZADA. */
+    @Size(max = 500, message = "El motivo de rechazo no puede superar 500 caracteres")
+    @Column(name = "motivo_rechazo", length = 500)
+    private String motivoRechazo;
+
+    /** Fecha y hora exacta en que se confirmó o rechazó. Para trazabilidad. */
+    @Column(name = "confirmada_at")
+    private LocalDateTime confirmadaAt;
+
+    // ── Helpers de estado ───────────────────────────────────────────────
+
+    public boolean isPendiente()  { return EstadoMovimiento.PENDIENTE  == this.estado; }
+    public boolean isConfirmada() { return EstadoMovimiento.CONFIRMADA == this.estado; }
+    public boolean isRechazada()  { return EstadoMovimiento.RECHAZADA  == this.estado; }
 
     // ── Helpers de relación ─────────────────────────────────────────────
 

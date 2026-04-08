@@ -1,9 +1,7 @@
 package com.costusoft.inventory_system.repo;
 
-// ─────────────────────────────────────────────────────────────
-// EntradaRepository.java
-// ─────────────────────────────────────────────────────────────
 import com.costusoft.inventory_system.entity.Entrada;
+import com.costusoft.inventory_system.entity.EstadoMovimiento;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,7 +16,7 @@ import java.util.Optional;
 @Repository
 public interface EntradaRepository extends JpaRepository<Entrada, Long> {
 
-    /** Fetch con detalles e insumos — evita N+1 en listados */
+    /** Fetch con detalles e insumos — evita N+1 en listados completos */
     @Query("""
                 SELECT DISTINCT e FROM Entrada e
                 LEFT JOIN FETCH e.detalles d
@@ -30,6 +28,9 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
 
     /** Paginado sin fetch (Spring resuelve count automáticamente) */
     Page<Entrada> findAllByOrderByFechaDesc(Pageable pageable);
+
+    /** Paginado filtrado por estado — bandeja de BODEGA */
+    Page<Entrada> findByEstadoOrderByFechaDesc(EstadoMovimiento estado, Pageable pageable);
 
     /** Para el módulo de predicción y reportes */
     List<Entrada> findByFechaBetween(LocalDate inicio, LocalDate fin);
@@ -48,4 +49,7 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
     Optional<Entrada> findByIdWithDetalles(@Param("id") Long id);
 
     long countByFechaBetween(LocalDate inicio, LocalDate fin);
+
+    /** Para contadores del dashboard — cuántas entradas hay por estado */
+    long countByEstado(EstadoMovimiento estado);
 }

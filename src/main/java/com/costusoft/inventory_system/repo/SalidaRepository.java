@@ -1,5 +1,6 @@
 package com.costusoft.inventory_system.repo;
 
+import com.costusoft.inventory_system.entity.EstadoMovimiento;
 import com.costusoft.inventory_system.entity.Salida;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,7 +16,11 @@ import java.util.Optional;
 @Repository
 public interface SalidaRepository extends JpaRepository<Salida, Long> {
 
+    /** Paginado sin fetch (Spring resuelve count automáticamente) */
     Page<Salida> findAllByOrderByFechaDesc(Pageable pageable);
+
+    /** Paginado filtrado por estado — bandeja de BODEGA */
+    Page<Salida> findByEstadoOrderByFechaDesc(EstadoMovimiento estado, Pageable pageable);
 
     List<Salida> findByFechaBetween(LocalDate inicio, LocalDate fin);
 
@@ -40,4 +45,7 @@ public interface SalidaRepository extends JpaRepository<Salida, Long> {
     List<Salida> findAllWithDetalles();
 
     long countByFechaBetween(LocalDate inicio, LocalDate fin);
+
+    /** Para contadores del dashboard — cuántas salidas hay por estado */
+    long countByEstado(EstadoMovimiento estado);
 }
