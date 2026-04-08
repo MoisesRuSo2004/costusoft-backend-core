@@ -74,20 +74,19 @@ public class SecurityConfig {
                         // Solo ADMIN puede gestionar proveedores
                         .requestMatchers("/api/proveedores/**").hasRole("ADMIN")
 
-                        // ADMIN y USER pueden ver y operar el inventario
-                        .requestMatchers("/api/insumos/**").hasAnyRole("ADMIN", "USER")
-                        .requestMatchers("/api/entradas/**").hasAnyRole("ADMIN", "USER")
-                        .requestMatchers("/api/salidas/**").hasAnyRole("ADMIN", "USER")
-                        .requestMatchers("/api/colegios/**").hasAnyRole("ADMIN", "USER")
-                        .requestMatchers("/api/uniformes/**").hasAnyRole("ADMIN", "USER")
+                        // Inventario: BODEGA puede ver pero no crear/editar
+                        // (los endpoints individuales con @PreAuthorize granular aplican la restricción exacta)
+                        .requestMatchers("/api/insumos/**").hasAnyRole("ADMIN", "USER", "BODEGA")
+                        .requestMatchers("/api/entradas/**").hasAnyRole("ADMIN", "USER", "BODEGA")
+                        .requestMatchers("/api/salidas/**").hasAnyRole("ADMIN", "USER", "BODEGA")
+                        .requestMatchers("/api/colegios/**").hasAnyRole("ADMIN", "USER", "BODEGA")
+                        .requestMatchers("/api/uniformes/**").hasAnyRole("ADMIN", "USER", "BODEGA")
 
-                        // Dashboard y reportes para ambos roles
-                        .requestMatchers("/api/dashboard/**").hasAnyRole("ADMIN", "USER")
-                        .requestMatchers("/api/reporte/**").hasAnyRole("ADMIN", "USER")
-
-                        // Calculadora y predicción para ambos roles
-                        .requestMatchers("/api/calculadora/**").hasAnyRole("ADMIN", "USER")
-                        .requestMatchers("/api/prediccion/**").hasAnyRole("ADMIN", "USER")
+                        // Dashboard, reportes y calculadora accesibles para todos los roles
+                        .requestMatchers("/api/dashboard/**").hasAnyRole("ADMIN", "USER", "BODEGA")
+                        .requestMatchers("/api/reporte/**").hasAnyRole("ADMIN", "USER", "BODEGA")
+                        .requestMatchers("/api/calculadora/**").hasAnyRole("ADMIN", "USER", "BODEGA")
+                        .requestMatchers("/api/prediccion/**").hasAnyRole("ADMIN", "USER", "BODEGA")
 
                         // Cualquier otra ruta requiere autenticación
                         .anyRequest().authenticated())

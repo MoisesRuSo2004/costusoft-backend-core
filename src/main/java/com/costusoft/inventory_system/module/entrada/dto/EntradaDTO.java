@@ -8,10 +8,13 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * DTOs del modulo Entrada.
+ * DTOs del módulo Entrada.
  *
- * Una entrada tiene una lista de detalles (insumo + cantidad).
- * Tanto el padre como cada detalle se validan con @Valid en cascada.
+ * Flujo BODEGA:
+ *   - Request     → USER/ADMIN crea solicitud PENDIENTE (sin tocar stock)
+ *   - RechazarRequest → BODEGA/ADMIN rechaza con motivo
+ *   - Response    → incluye estado, confirmadaPor, motivoRechazo para que el
+ *                   frontend actualice la UI sin una segunda consulta
  */
 public class EntradaDTO {
 
@@ -56,6 +59,19 @@ public class EntradaDTO {
         private Integer cantidad;
     }
 
+    // ── Rechazar Request ─────────────────────────────────────────────────
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RechazarRequest {
+
+        @NotBlank(message = "El motivo de rechazo es obligatorio")
+        @Size(max = 500, message = "El motivo no puede superar 500 caracteres")
+        private String motivo;
+    }
+
     // ── Response ─────────────────────────────────────────────────────────
 
     @Getter
@@ -67,6 +83,13 @@ public class EntradaDTO {
         private final String descripcion;
         private final String proveedorNombre;
         private final List<DetalleResponse> detalles;
+
+        // ── Campos de flujo de aprobación ──────────────────────────────
+        private final String estado;
+        private final String confirmadaPor;
+        private final String motivoRechazo;
+        private final String confirmadaAt;
+
         private final String createdAt;
     }
 
