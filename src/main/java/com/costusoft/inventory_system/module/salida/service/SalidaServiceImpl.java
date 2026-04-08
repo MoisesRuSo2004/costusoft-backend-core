@@ -1,16 +1,14 @@
 package com.costusoft.inventory_system.module.salida.service;
 
-import com.costusoft.inventory_system.entity.Colegio;
-import com.costusoft.inventory_system.entity.DetalleSalida;
-import com.costusoft.inventory_system.entity.Insumo;
-import com.costusoft.inventory_system.entity.Salida;
-import com.costusoft.inventory_system.repo.ColegioRepository;
-import com.costusoft.inventory_system.repo.InsumoRepository;
-import com.costusoft.inventory_system.repo.SalidaRepository;
+import com.costusoft.inventory_system.entity.*;
+import com.costusoft.inventory_system.exception.BusinessException;
 import com.costusoft.inventory_system.exception.ResourceNotFoundException;
 import com.costusoft.inventory_system.exception.StockInsuficienteException;
 import com.costusoft.inventory_system.module.salida.dto.SalidaDTO;
 import com.costusoft.inventory_system.module.salida.mapper.SalidaMapper;
+import com.costusoft.inventory_system.repo.ColegioRepository;
+import com.costusoft.inventory_system.repo.InsumoRepository;
+import com.costusoft.inventory_system.repo.SalidaRepository;
 import com.costusoft.inventory_system.shared.dto.PageDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,19 +17,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Implementacion del servicio de salidas.
+ * Implementación del servicio de salidas — flujo con rol BODEGA.
  *
- * Punto critico de seguridad de stock:
- * - PRIMERO valida stock de TODOS los insumos del detalle
- * - LUEGO descuenta — garantizando que no quede stock negativo
- * aunque la transaccion falle a mitad.
- *
- * Si cualquier insumo no tiene stock suficiente se lanza
- * StockInsuficienteException antes de modificar nada.
+ * Reglas críticas de stock:
+ *   - crear()    → estado PENDIENTE. Stock INTACTO.
+ *   - actualizar()→ solo PENDIENTE. Stock INTACTO.
+ *   - confirmar() → PENDIENTE → CONFIRMADA. Valida stock ANTES y DESCUENTA.
+ *   - rechazar()  → PENDIENTE → RECHAZADA.  Stock INTACTO.
+ *   - eliminar()  → solo PENDIENTE o RECHAZADA (CONFIRMADA protegida).
  */
 @Slf4j
 @Service
@@ -44,6 +43,8 @@ public class SalidaServiceImpl implements SalidaService {
     private final ColegioRepository colegioRepository;
     private final SalidaMapper salidaMapper;
 
+    private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     // ── Crear ────────────────────────────────────────────────────────────
 
     @Override
@@ -51,25 +52,22 @@ public class SalidaServiceImpl implements SalidaService {
         Salida salida = new Salida();
         salida.setFecha(request.getFecha() != null ? request.getFecha() : LocalDate.now());
         salida.setDescripcion(request.getDescripcion());
+        salida.setEstado(EstadoMovimiento.PENDIENTE);
 
-        // Resolver colegio destino si viene
         if (request.getColegioId() != null) {
             Colegio colegio = colegioRepository.findById(request.getColegioId())
                     .orElseThrow(() -> new ResourceNotFoundException("Colegio", request.getColegioId()));
             salida.setColegio(colegio);
         }
 
-        // Validar stock de todos los insumos ANTES de descontar
-        validarStockSuficiente(request.getDetalles());
-
-        // Construir detalles y descontar stock
-        List<DetalleSalida> detalles = buildDetallesYDescontarStock(request.getDetalles());
+        // Construir detalles SIN descontar stock — stock se mueve al confirmar
+        List<DetalleSalida> detalles = buildDetalles(request.getDetalles());
         detalles.forEach(salida::agregarDetalle);
 
         Salida guardada = salidaRepository.save(salida);
-        log.info("Salida creada — id: {} | detalles: {}", guardada.getId(), detalles.size());
+        log.info("Salida PENDIENTE creada — id: {} | detalles: {}", guardada.getId(), detalles.size());
 
-        return toResponseConDetalles(guardada);
+        return toResponse(guardada);
     }
 
     // ── Listar ───────────────────────────────────────────────────────────
@@ -79,7 +77,15 @@ public class SalidaServiceImpl implements SalidaService {
     public PageDTO<SalidaDTO.Response> listar(Pageable pageable) {
         return PageDTO.from(
                 salidaRepository.findAllByOrderByFechaDesc(pageable),
-                this::toResponseConDetalles);
+                this::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageDTO<SalidaDTO.Response> listarPorEstado(EstadoMovimiento estado, Pageable pageable) {
+        return PageDTO.from(
+                salidaRepository.findByEstadoOrderByFechaDesc(estado, pageable),
+                this::toResponse);
     }
 
     // ── Obtener por ID ───────────────────────────────────────────────────
@@ -89,7 +95,7 @@ public class SalidaServiceImpl implements SalidaService {
     public SalidaDTO.Response obtenerPorId(Long id) {
         Salida salida = salidaRepository.findByIdWithDetalles(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Salida", id));
-        return toResponseConDetalles(salida);
+        return toResponse(salida);
     }
 
     // ── Actualizar ───────────────────────────────────────────────────────
@@ -99,13 +105,11 @@ public class SalidaServiceImpl implements SalidaService {
         Salida salida = salidaRepository.findByIdWithDetalles(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Salida", id));
 
-        // 1. Revertir stock original (sumar de vuelta)
-        revertirStock(salida.getDetalles());
+        if (!salida.isPendiente()) {
+            throw new BusinessException(
+                    "Solo se pueden editar salidas PENDIENTES. Estado actual: " + salida.getEstado());
+        }
 
-        // 2. Limpiar detalles (orphanRemoval los elimina)
-        salida.limpiarDetalles();
-
-        // 3. Actualizar campos del padre
         salida.setFecha(request.getFecha() != null ? request.getFecha() : salida.getFecha());
         salida.setDescripcion(request.getDescripcion());
 
@@ -117,17 +121,72 @@ public class SalidaServiceImpl implements SalidaService {
             salida.setColegio(null);
         }
 
-        // 4. Validar nuevo stock ANTES de descontar
-        validarStockSuficiente(request.getDetalles());
-
-        // 5. Construir nuevos detalles y descontar
-        List<DetalleSalida> nuevosDetalles = buildDetallesYDescontarStock(request.getDetalles());
+        // Reemplazar detalles sin tocar stock
+        salida.limpiarDetalles();
+        List<DetalleSalida> nuevosDetalles = buildDetalles(request.getDetalles());
         nuevosDetalles.forEach(salida::agregarDetalle);
 
         Salida actualizada = salidaRepository.save(salida);
-        log.info("Salida actualizada — id: {}", id);
+        log.info("Salida PENDIENTE actualizada — id: {}", id);
 
-        return toResponseConDetalles(actualizada);
+        return toResponse(actualizada);
+    }
+
+    // ── Confirmar ────────────────────────────────────────────────────────
+
+    @Override
+    public SalidaDTO.Response confirmar(Long id, String username) {
+        Salida salida = salidaRepository.findByIdWithDetalles(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Salida", id));
+
+        if (!salida.isPendiente()) {
+            throw new BusinessException(
+                    "La salida ya fue procesada. Estado actual: " + salida.getEstado());
+        }
+
+        // Validar stock de TODOS los insumos ANTES de descontar ninguno
+        validarStockSuficiente(salida.getDetalles());
+
+        // Descontar stock de cada insumo
+        for (DetalleSalida detalle : salida.getDetalles()) {
+            Insumo insumo = insumoRepository.findById(detalle.getInsumo().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Insumo", detalle.getInsumo().getId()));
+            insumo.decrementarStock(detalle.getCantidad());
+            insumoRepository.save(insumo);
+        }
+
+        salida.setEstado(EstadoMovimiento.CONFIRMADA);
+        salida.setConfirmadaPor(username);
+        salida.setConfirmadaAt(LocalDateTime.now());
+
+        Salida confirmada = salidaRepository.save(salida);
+        log.info("Salida CONFIRMADA — id: {} | por: {} | insumos descontados: {}",
+                id, username, salida.getDetalles().size());
+
+        return toResponse(confirmada);
+    }
+
+    // ── Rechazar ─────────────────────────────────────────────────────────
+
+    @Override
+    public SalidaDTO.Response rechazar(Long id, String motivo, String username) {
+        Salida salida = salidaRepository.findByIdWithDetalles(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Salida", id));
+
+        if (!salida.isPendiente()) {
+            throw new BusinessException(
+                    "La salida ya fue procesada. Estado actual: " + salida.getEstado());
+        }
+
+        salida.setEstado(EstadoMovimiento.RECHAZADA);
+        salida.setMotivoRechazo(motivo);
+        salida.setConfirmadaPor(username);
+        salida.setConfirmadaAt(LocalDateTime.now());
+
+        Salida rechazada = salidaRepository.save(salida);
+        log.info("Salida RECHAZADA — id: {} | por: {} | motivo: {}", id, username, motivo);
+
+        return toResponse(rechazada);
     }
 
     // ── Eliminar ─────────────────────────────────────────────────────────
@@ -136,48 +195,29 @@ public class SalidaServiceImpl implements SalidaService {
     public void eliminar(Long id) {
         Salida salida = salidaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Salida", id));
+
+        if (salida.isConfirmada()) {
+            throw new BusinessException(
+                    "No se puede eliminar una salida CONFIRMADA. El stock ya fue descontado. "
+                    + "Registre una entrada de ajuste si corresponde.");
+        }
+
         salidaRepository.delete(salida);
-        log.warn("Salida eliminada — id: {}. Stock NO revertido automaticamente.", id);
+        log.warn("Salida eliminada — id: {} | estado previo: {}", id, salida.getEstado());
     }
 
     // ── Helpers privados ─────────────────────────────────────────────────
 
     /**
-     * Valida que TODOS los insumos tengan stock suficiente
-     * ANTES de hacer cualquier descuento.
-     *
-     * Falla rapido: lanza excepcion al primer insumo con stock insuficiente.
+     * Construye los DetalleSalida resolviendo cada insumo desde BD.
+     * No modifica el stock (se hace al confirmar).
      */
-    private void validarStockSuficiente(List<SalidaDTO.DetalleRequest> detalles) {
-        for (SalidaDTO.DetalleRequest dr : detalles) {
-            Insumo insumo = insumoRepository.findById(dr.getInsumoId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Insumo", dr.getInsumoId()));
-
-            if (dr.getCantidad() > insumo.getStock()) {
-                throw new StockInsuficienteException(
-                        insumo.getNombre(),
-                        insumo.getStock(),
-                        dr.getCantidad());
-            }
-        }
-    }
-
-    /**
-     * Construye los DetalleSalida y descuenta el stock de cada insumo.
-     * Solo llamar DESPUES de validarStockSuficiente().
-     */
-    private List<DetalleSalida> buildDetallesYDescontarStock(
-            List<SalidaDTO.DetalleRequest> detalleRequests) {
-
+    private List<DetalleSalida> buildDetalles(List<SalidaDTO.DetalleRequest> detalleRequests) {
         List<DetalleSalida> detalles = new ArrayList<>();
 
         for (SalidaDTO.DetalleRequest dr : detalleRequests) {
             Insumo insumo = insumoRepository.findById(dr.getInsumoId())
                     .orElseThrow(() -> new ResourceNotFoundException("Insumo", dr.getInsumoId()));
-
-            // decrementarStock esta en la entidad y valida stock no negativo
-            insumo.decrementarStock(dr.getCantidad());
-            insumoRepository.save(insumo);
 
             DetalleSalida detalle = DetalleSalida.builder()
                     .insumo(insumo)
@@ -192,24 +232,26 @@ public class SalidaServiceImpl implements SalidaService {
     }
 
     /**
-     * Revierte el stock sumando de vuelta las cantidades descontadas.
-     * Se usa antes de aplicar los nuevos detalles en una actualizacion.
+     * Valida que TODOS los insumos del detalle tengan stock suficiente.
+     * Falla rápido: lanza excepción al primer insumo con stock insuficiente.
+     * Garantiza que NO se descuente nada si alguno falla.
      */
-    private void revertirStock(List<DetalleSalida> detalles) {
+    private void validarStockSuficiente(List<DetalleSalida> detalles) {
         for (DetalleSalida detalle : detalles) {
             Insumo insumo = insumoRepository.findById(detalle.getInsumo().getId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Insumo", detalle.getInsumo().getId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Insumo", detalle.getInsumo().getId()));
 
-            insumo.incrementarStock(detalle.getCantidad());
-            insumoRepository.save(insumo);
+            if (detalle.getCantidad() > insumo.getStock()) {
+                throw new StockInsuficienteException(
+                        insumo.getNombre(),
+                        insumo.getStock(),
+                        detalle.getCantidad());
+            }
         }
     }
 
-    /**
-     * Construye el Response completo con detalles mapeados.
-     */
-    private SalidaDTO.Response toResponseConDetalles(Salida salida) {
+    /** Construye el Response completo incluyendo los nuevos campos de estado. */
+    private SalidaDTO.Response toResponse(Salida salida) {
         List<SalidaDTO.DetalleResponse> detallesResponse = salida.getDetalles()
                 .stream()
                 .map(salidaMapper::detalleToResponse)
@@ -220,12 +262,15 @@ public class SalidaServiceImpl implements SalidaService {
                 .fecha(salida.getFecha() != null ? salida.getFecha().toString() : null)
                 .descripcion(salida.getDescripcion())
                 .colegioNombre(salida.getColegio() != null
-                        ? salida.getColegio().getNombre()
-                        : null)
+                        ? salida.getColegio().getNombre() : null)
                 .detalles(detallesResponse)
+                .estado(salida.getEstado() != null ? salida.getEstado().name() : null)
+                .confirmadaPor(salida.getConfirmadaPor())
+                .motivoRechazo(salida.getMotivoRechazo())
+                .confirmadaAt(salida.getConfirmadaAt() != null
+                        ? salida.getConfirmadaAt().format(DT_FMT) : null)
                 .createdAt(salida.getCreatedAt() != null
-                        ? salida.getCreatedAt().toString()
-                        : null)
+                        ? salida.getCreatedAt().format(DT_FMT) : null)
                 .build();
     }
 }
