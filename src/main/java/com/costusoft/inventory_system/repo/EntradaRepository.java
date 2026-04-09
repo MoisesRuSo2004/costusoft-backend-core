@@ -35,8 +35,31 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
     /** Para el módulo de predicción y reportes */
     List<Entrada> findByFechaBetween(LocalDate inicio, LocalDate fin);
 
+    /** Para reportes — evita N+1 al acceder a detalles e insumos */
+    @Query("""
+                SELECT DISTINCT e FROM Entrada e
+                LEFT JOIN FETCH e.detalles d
+                LEFT JOIN FETCH d.insumo
+                LEFT JOIN FETCH e.proveedor
+                WHERE e.fecha BETWEEN :inicio AND :fin
+            """)
+    List<Entrada> findByFechaBetweenWithDetalles(@Param("inicio") LocalDate inicio, @Param("fin") LocalDate fin);
+
     /** Para reportes filtrados por proveedor */
     List<Entrada> findByProveedorIdAndFechaBetween(Long proveedorId, LocalDate inicio, LocalDate fin);
+
+    /** Para reportes filtrados por proveedor — evita N+1 */
+    @Query("""
+                SELECT DISTINCT e FROM Entrada e
+                LEFT JOIN FETCH e.detalles d
+                LEFT JOIN FETCH d.insumo
+                LEFT JOIN FETCH e.proveedor
+                WHERE e.proveedor.id = :proveedorId AND e.fecha BETWEEN :inicio AND :fin
+            """)
+    List<Entrada> findByProveedorIdAndFechaBetweenWithDetalles(
+            @Param("proveedorId") Long proveedorId,
+            @Param("inicio") LocalDate inicio,
+            @Param("fin") LocalDate fin);
 
     /** Fetch individual con detalles */
     @Query("""

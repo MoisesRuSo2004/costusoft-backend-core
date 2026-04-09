@@ -15,13 +15,14 @@ import java.util.List;
  * ──────────────────────────────────────────────────────────────────────────
  * FLUJO DE CREACIÓN DESDE FRONTEND
  * ──────────────────────────────────────────────────────────────────────────
- * 1. GET  /api/colegios             → listar colegios (selección o buscador)
- * 2. POST /api/colegios             → crear colegio si no existe
- *    ─ O ─ usar nuevoColegio en el body del pedido (creación inline)
- * 3. GET  /api/uniformes/colegio/{colegioId} → listar prendas del colegio
- * 4. Por cada prenda seleccionada:  pedir cantidad + talla → agregar a lista
- * 5. POST /api/pedidos              → crear pedido
- * 6. POST /api/pedidos/{id}/calcular → verificar stock (opcional antes de confirmar)
+ * 1. GET /api/colegios → listar colegios (selección o buscador)
+ * 2. POST /api/colegios → crear colegio si no existe
+ * ─ O ─ usar nuevoColegio en el body del pedido (creación inline)
+ * 3. GET /api/uniformes/colegio/{colegioId} → listar prendas del colegio
+ * 4. Por cada prenda seleccionada: pedir cantidad + talla → agregar a lista
+ * 5. POST /api/pedidos → crear pedido
+ * 6. POST /api/pedidos/{id}/calcular → verificar stock (opcional antes de
+ * confirmar)
  * 7. POST /api/pedidos/{id}/confirmar → confirmar
  * ──────────────────────────────────────────────────────────────────────────
  */
@@ -29,7 +30,7 @@ import java.util.List;
 public class PedidoDTO {
 
     // ══════════════════════════════════════════════════════════════════════
-    //  REQUEST — Crear / Actualizar
+    // REQUEST — Crear / Actualizar
     // ══════════════════════════════════════════════════════════════════════
 
     @Getter
@@ -88,9 +89,9 @@ public class PedidoDTO {
      * Una prenda dentro del pedido.
      *
      * Flujo UI:
-     *   - Seleccionar uniforme del listado (GET /api/uniformes/colegio/{id})
-     *   - Ingresar cantidad (número de unidades requeridas)
-     *   - Ingresar talla (ej. "4", "M", "XL", "Única")
+     * - Seleccionar uniforme del listado (GET /api/uniformes/colegio/{id})
+     * - Ingresar cantidad (número de unidades requeridas)
+     * - Ingresar talla (ej. "4", "M", "XL", "Única")
      */
     @Getter
     @Setter
@@ -101,15 +102,17 @@ public class PedidoDTO {
         private Long uniformeId;
 
         @NotNull(message = "La cantidad es obligatoria")
-        @Min(value = 1,     message = "La cantidad debe ser al menos 1")
+        @Min(value = 1, message = "La cantidad debe ser al menos 1")
         @Max(value = 10000, message = "La cantidad no puede superar 10.000 unidades")
         private Integer cantidad;
 
         /**
-         * Talla solicitada para esta prenda.
-         * Ejemplos: "4", "6", "8", "10", "12", "S", "M", "L", "XL", "Única".
-         * Si no se especifica, se usa la talla configurada en el uniforme.
+         * Talla solicitada para esta prenda. OBLIGATORIA.
+         * Determina qué insumos se usan en el cálculo.
+         * Consulta tallas disponibles en GET /api/uniformes/{id}/tallas.
+         * Ejemplos: "S", "M", "L", "XL", "06-08", "10-12", "14-16"
          */
+        @NotBlank(message = "La talla es obligatoria para calcular los insumos correctos")
         @Size(max = 10, message = "La talla no puede superar 10 caracteres")
         private String talla;
     }
@@ -125,7 +128,7 @@ public class PedidoDTO {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    //  RESPONSE — Pedido completo
+    // RESPONSE — Pedido completo
     // ══════════════════════════════════════════════════════════════════════
 
     @Getter
@@ -195,8 +198,9 @@ public class PedidoDTO {
         private final String tipo;
 
         /**
-         * Talla solicitada. Puede diferir de uniforme.talla si el usuario
-         * especificó una talla diferente al agregar al pedido.
+         * Talla solicitada por el cliente para esta prenda en el pedido.
+         * Obligatoria — determina qué insumos se usan en la calculadora.
+         * Ejemplos: "S", "M", "L", "XL", "06-08", "10-12", "14-16"
          */
         private final String talla;
 

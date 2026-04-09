@@ -1,0 +1,1083 @@
+{
+  "info": {
+    "name": "Costusoft — Inventory System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Colección completa del API REST del sistema de inventario de Costusoft. Incluye todos los módulos: Auth, Usuarios, Insumos, Colegios, Proveedores, Entradas, Salidas, Uniformes, Pedidos, Calculadora, Dashboard, Reportes y Predicción."
+  },
+  "variable": [
+    { "key": "baseUrl",       "value": "http://localhost:8080",  "type": "string" },
+    { "key": "accessToken",   "value": "",                       "type": "string" },
+    { "key": "refreshToken",  "value": "",                       "type": "string" },
+    { "key": "insumoId",      "value": "1",                      "type": "string" },
+    { "key": "colegioId",     "value": "1",                      "type": "string" },
+    { "key": "proveedorId",   "value": "1",                      "type": "string" },
+    { "key": "uniformeId",    "value": "1",                      "type": "string" },
+    { "key": "pedidoId",      "value": "1",                      "type": "string" },
+    { "key": "entradaId",     "value": "1",                      "type": "string" },
+    { "key": "salidaId",      "value": "1",                      "type": "string" },
+    { "key": "usuarioId",     "value": "1",                      "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+
+    {
+      "name": "01 — Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) {",
+                  "  pm.collectionVariables.set('accessToken',  res.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', res.data.refreshToken);",
+                  "  console.log('Tokens guardados. Rol:', res.data.usuario.rol);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api","auth","login"] }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) {",
+                  "  pm.collectionVariables.set('accessToken',  res.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', res.data.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api","auth","refresh"] }
+          }
+        },
+        {
+          "name": "Mi perfil (GET /auth/me)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api","auth","me"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "02 — Usuarios (ADMIN)",
+      "item": [
+        {
+          "name": "Listar usuarios",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios?page=0&size=10&sortBy=username&sortDir=asc",
+              "host": ["{{baseUrl}}"], "path": ["api","usuarios"],
+              "query": [
+                { "key": "page",    "value": "0" },
+                { "key": "size",    "value": "10" },
+                { "key": "sortBy",  "value": "username" },
+                { "key": "sortDir", "value": "asc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener usuario por ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/usuarios/{{usuarioId}}", "host": ["{{baseUrl}}"], "path": ["api","usuarios","{{usuarioId}}"] }
+          }
+        },
+        {
+          "name": "Crear usuario",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"bodeguero01\",\n  \"password\": \"pass1234\",\n  \"correo\": \"bodeguero01@costusoft.com\",\n  \"rol\": \"BODEGA\",\n  \"activo\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/usuarios", "host": ["{{baseUrl}}"], "path": ["api","usuarios"] }
+          }
+        },
+        {
+          "name": "Actualizar usuario",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"bodeguero01\",\n  \"password\": \"newpass456\",\n  \"correo\": \"bodeguero01@costusoft.com\",\n  \"rol\": \"USER\",\n  \"activo\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/usuarios/{{usuarioId}}", "host": ["{{baseUrl}}"], "path": ["api","usuarios","{{usuarioId}}"] }
+          }
+        },
+        {
+          "name": "Toggle activo/inactivo",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/api/usuarios/{{usuarioId}}/toggle", "host": ["{{baseUrl}}"], "path": ["api","usuarios","{{usuarioId}}","toggle"] }
+          }
+        },
+        {
+          "name": "Cambiar mi contraseña",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"passwordActual\": \"admin123\",\n  \"passwordNueva\": \"nuevoPass99\",\n  \"passwordConfirmacion\": \"nuevoPass99\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/usuarios/mi-password", "host": ["{{baseUrl}}"], "path": ["api","usuarios","mi-password"] }
+          }
+        },
+        {
+          "name": "Eliminar usuario",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/usuarios/{{usuarioId}}", "host": ["{{baseUrl}}"], "path": ["api","usuarios","{{usuarioId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "03 — Insumos",
+      "item": [
+        {
+          "name": "Listar insumos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/insumos?page=0&size=10&sortBy=nombre&sortDir=asc",
+              "host": ["{{baseUrl}}"], "path": ["api","insumos"],
+              "query": [
+                { "key": "page",    "value": "0" },
+                { "key": "size",    "value": "10" },
+                { "key": "sortBy",  "value": "nombre" },
+                { "key": "sortDir", "value": "asc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener insumo por ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/insumos/{{insumoId}}", "host": ["{{baseUrl}}"], "path": ["api","insumos","{{insumoId}}"] }
+          }
+        },
+        {
+          "name": "Buscar insumo por nombre",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/insumos/buscar?nombre=tela",
+              "host": ["{{baseUrl}}"], "path": ["api","insumos","buscar"],
+              "query": [{ "key": "nombre", "value": "tela" }]
+            }
+          }
+        },
+        {
+          "name": "Insumos con stock bajo",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/insumos/stock-bajo", "host": ["{{baseUrl}}"], "path": ["api","insumos","stock-bajo"] }
+          }
+        },
+        {
+          "name": "Crear insumo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) pm.collectionVariables.set('insumoId', res.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Tela Oxford\",\n  \"stock\": 500,\n  \"unidadMedida\": \"metros\",\n  \"tipo\": \"Tela\",\n  \"stockMinimo\": 50\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/insumos", "host": ["{{baseUrl}}"], "path": ["api","insumos"] }
+          }
+        },
+        {
+          "name": "Actualizar insumo",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Tela Oxford Premium\",\n  \"stock\": 500,\n  \"unidadMedida\": \"metros\",\n  \"tipo\": \"Tela\",\n  \"stockMinimo\": 60\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/insumos/{{insumoId}}", "host": ["{{baseUrl}}"], "path": ["api","insumos","{{insumoId}}"] }
+          }
+        },
+        {
+          "name": "Ajuste manual de stock (ADMIN)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nuevoStock\": 450,\n  \"observacion\": \"Ajuste por inventario físico mensual\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/insumos/{{insumoId}}/stock", "host": ["{{baseUrl}}"], "path": ["api","insumos","{{insumoId}}","stock"] }
+          }
+        },
+        {
+          "name": "Eliminar insumo (ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/insumos/{{insumoId}}", "host": ["{{baseUrl}}"], "path": ["api","insumos","{{insumoId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "04 — Colegios",
+      "item": [
+        {
+          "name": "Listar colegios",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/colegios?page=0&size=10&sortBy=nombre&sortDir=asc",
+              "host": ["{{baseUrl}}"], "path": ["api","colegios"],
+              "query": [
+                { "key": "page",    "value": "0" },
+                { "key": "size",    "value": "10" },
+                { "key": "sortBy",  "value": "nombre" },
+                { "key": "sortDir", "value": "asc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener colegio con uniformes",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/colegios/{{colegioId}}", "host": ["{{baseUrl}}"], "path": ["api","colegios","{{colegioId}}"] }
+          }
+        },
+        {
+          "name": "Crear colegio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) pm.collectionVariables.set('colegioId', res.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Colegio San José\",\n  \"direccion\": \"Av. Principal 123, Zona 1\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/colegios", "host": ["{{baseUrl}}"], "path": ["api","colegios"] }
+          }
+        },
+        {
+          "name": "Actualizar colegio",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Colegio San José Actualizado\",\n  \"direccion\": \"Av. Reforma 456, Zona 10\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/colegios/{{colegioId}}", "host": ["{{baseUrl}}"], "path": ["api","colegios","{{colegioId}}"] }
+          }
+        },
+        {
+          "name": "Eliminar colegio (ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/colegios/{{colegioId}}", "host": ["{{baseUrl}}"], "path": ["api","colegios","{{colegioId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "05 — Proveedores (ADMIN)",
+      "item": [
+        {
+          "name": "Listar proveedores",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/proveedores?page=0&size=10&sortBy=nombre&sortDir=asc",
+              "host": ["{{baseUrl}}"], "path": ["api","proveedores"],
+              "query": [
+                { "key": "page",    "value": "0" },
+                { "key": "size",    "value": "10" },
+                { "key": "sortBy",  "value": "nombre" },
+                { "key": "sortDir", "value": "asc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener proveedor por ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/proveedores/{{proveedorId}}", "host": ["{{baseUrl}}"], "path": ["api","proveedores","{{proveedorId}}"] }
+          }
+        },
+        {
+          "name": "Crear proveedor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) pm.collectionVariables.set('proveedorId', res.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Textilera del Sur\",\n  \"nit\": \"123456789\",\n  \"telefono\": \"50212345678\",\n  \"direccion\": \"Zona Industrial, Bodega 5\",\n  \"correo\": \"ventas@textileradelsur.com\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/proveedores", "host": ["{{baseUrl}}"], "path": ["api","proveedores"] }
+          }
+        },
+        {
+          "name": "Actualizar proveedor",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Textilera del Sur S.A.\",\n  \"nit\": \"123456789\",\n  \"telefono\": \"50287654321\",\n  \"direccion\": \"Zona Industrial, Bodega 8\",\n  \"correo\": \"contacto@textileradelsur.com\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/proveedores/{{proveedorId}}", "host": ["{{baseUrl}}"], "path": ["api","proveedores","{{proveedorId}}"] }
+          }
+        },
+        {
+          "name": "Eliminar proveedor",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/proveedores/{{proveedorId}}", "host": ["{{baseUrl}}"], "path": ["api","proveedores","{{proveedorId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "06 — Entradas de Inventario",
+      "item": [
+        {
+          "name": "Listar entradas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/entradas?page=0&size=10",
+              "host": ["{{baseUrl}}"], "path": ["api","entradas"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar entradas por estado",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/entradas/estado?estado=PENDIENTE&page=0&size=10",
+              "host": ["{{baseUrl}}"], "path": ["api","entradas","estado"],
+              "query": [
+                { "key": "estado", "value": "PENDIENTE", "description": "PENDIENTE | CONFIRMADO | RECHAZADO" },
+                { "key": "page",   "value": "0" },
+                { "key": "size",   "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener entrada por ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/entradas/{{entradaId}}", "host": ["{{baseUrl}}"], "path": ["api","entradas","{{entradaId}}"] }
+          }
+        },
+        {
+          "name": "Crear entrada (PENDIENTE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) pm.collectionVariables.set('entradaId', res.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"2026-04-08\",\n  \"descripcion\": \"Compra mensual de telas\",\n  \"proveedorId\": {{proveedorId}},\n  \"detalles\": [\n    {\n      \"insumoId\": {{insumoId}},\n      \"cantidad\": 200\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/entradas", "host": ["{{baseUrl}}"], "path": ["api","entradas"] }
+          }
+        },
+        {
+          "name": "Actualizar entrada (solo PENDIENTE)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"2026-04-09\",\n  \"descripcion\": \"Compra mensual de telas — actualizado\",\n  \"proveedorId\": {{proveedorId}},\n  \"detalles\": [\n    {\n      \"insumoId\": {{insumoId}},\n      \"cantidad\": 250\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/entradas/{{entradaId}}", "host": ["{{baseUrl}}"], "path": ["api","entradas","{{entradaId}}"] }
+          }
+        },
+        {
+          "name": "Confirmar entrada (ADMIN/BODEGA) → suma stock",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/api/entradas/{{entradaId}}/confirmar", "host": ["{{baseUrl}}"], "path": ["api","entradas","{{entradaId}}","confirmar"] }
+          }
+        },
+        {
+          "name": "Rechazar entrada (ADMIN/BODEGA)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Material no cumple estándar de calidad requerido\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/entradas/{{entradaId}}/rechazar", "host": ["{{baseUrl}}"], "path": ["api","entradas","{{entradaId}}","rechazar"] }
+          }
+        },
+        {
+          "name": "Eliminar entrada (ADMIN — solo PENDIENTE)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/entradas/{{entradaId}}", "host": ["{{baseUrl}}"], "path": ["api","entradas","{{entradaId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "07 — Salidas de Inventario",
+      "item": [
+        {
+          "name": "Listar salidas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/salidas?page=0&size=10",
+              "host": ["{{baseUrl}}"], "path": ["api","salidas"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar salidas por estado",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/salidas/estado?estado=PENDIENTE&page=0&size=10",
+              "host": ["{{baseUrl}}"], "path": ["api","salidas","estado"],
+              "query": [
+                { "key": "estado", "value": "PENDIENTE", "description": "PENDIENTE | CONFIRMADO | RECHAZADO" },
+                { "key": "page",   "value": "0" },
+                { "key": "size",   "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener salida por ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/salidas/{{salidaId}}", "host": ["{{baseUrl}}"], "path": ["api","salidas","{{salidaId}}"] }
+          }
+        },
+        {
+          "name": "Crear salida (PENDIENTE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) pm.collectionVariables.set('salidaId', res.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"2026-04-08\",\n  \"descripcion\": \"Entrega de telas para confección\",\n  \"colegioId\": {{colegioId}},\n  \"detalles\": [\n    {\n      \"insumoId\": {{insumoId}},\n      \"cantidad\": 50\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/salidas", "host": ["{{baseUrl}}"], "path": ["api","salidas"] }
+          }
+        },
+        {
+          "name": "Actualizar salida (solo PENDIENTE)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"2026-04-09\",\n  \"descripcion\": \"Entrega de telas — cantidad actualizada\",\n  \"colegioId\": {{colegioId}},\n  \"detalles\": [\n    {\n      \"insumoId\": {{insumoId}},\n      \"cantidad\": 60\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/salidas/{{salidaId}}", "host": ["{{baseUrl}}"], "path": ["api","salidas","{{salidaId}}"] }
+          }
+        },
+        {
+          "name": "Confirmar salida (ADMIN/BODEGA) → descuenta stock",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/api/salidas/{{salidaId}}/confirmar", "host": ["{{baseUrl}}"], "path": ["api","salidas","{{salidaId}}","confirmar"] }
+          }
+        },
+        {
+          "name": "Rechazar salida (ADMIN/BODEGA)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Stock insuficiente para completar la salida\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/salidas/{{salidaId}}/rechazar", "host": ["{{baseUrl}}"], "path": ["api","salidas","{{salidaId}}","rechazar"] }
+          }
+        },
+        {
+          "name": "Eliminar salida (ADMIN — solo PENDIENTE)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/salidas/{{salidaId}}", "host": ["{{baseUrl}}"], "path": ["api","salidas","{{salidaId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "08 — Uniformes",
+      "item": [
+        {
+          "name": "Uniformes por colegio",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/uniformes/colegio/{{colegioId}}", "host": ["{{baseUrl}}"], "path": ["api","uniformes","colegio","{{colegioId}}"] }
+          }
+        },
+        {
+          "name": "Obtener uniforme por ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/uniformes/{{uniformeId}}", "host": ["{{baseUrl}}"], "path": ["api","uniformes","{{uniformeId}}"] }
+          }
+        },
+        {
+          "name": "Tallas disponibles de un uniforme",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/uniformes/{{uniformeId}}/tallas", "host": ["{{baseUrl}}"], "path": ["api","uniformes","{{uniformeId}}","tallas"] }
+          }
+        },
+        {
+          "name": "Crear uniforme",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) pm.collectionVariables.set('uniformeId', res.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prenda\": \"Camisa\",\n  \"tipo\": \"Formal\",\n  \"genero\": \"Masculino\",\n  \"colegioId\": {{colegioId}},\n  \"insumosRequeridos\": [\n    {\n      \"insumoId\": {{insumoId}},\n      \"cantidadBase\": 1.5,\n      \"unidadMedida\": \"metros\",\n      \"talla\": \"S\"\n    },\n    {\n      \"insumoId\": {{insumoId}},\n      \"cantidadBase\": 1.75,\n      \"unidadMedida\": \"metros\",\n      \"talla\": \"M\"\n    },\n    {\n      \"insumoId\": {{insumoId}},\n      \"cantidadBase\": 2.0,\n      \"unidadMedida\": \"metros\",\n      \"talla\": \"L\"\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/uniformes", "host": ["{{baseUrl}}"], "path": ["api","uniformes"] }
+          }
+        },
+        {
+          "name": "Actualizar uniforme",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prenda\": \"Camisa Gala\",\n  \"tipo\": \"Formal\",\n  \"genero\": \"Masculino\",\n  \"colegioId\": {{colegioId}},\n  \"insumosRequeridos\": [\n    {\n      \"insumoId\": {{insumoId}},\n      \"cantidadBase\": 1.6,\n      \"unidadMedida\": \"metros\",\n      \"talla\": \"S\"\n    },\n    {\n      \"insumoId\": {{insumoId}},\n      \"cantidadBase\": 1.9,\n      \"unidadMedida\": \"metros\",\n      \"talla\": \"M\"\n    },\n    {\n      \"insumoId\": {{insumoId}},\n      \"cantidadBase\": 2.1,\n      \"unidadMedida\": \"metros\",\n      \"talla\": \"L\"\n    },\n    {\n      \"insumoId\": {{insumoId}},\n      \"cantidadBase\": 2.4,\n      \"unidadMedida\": \"metros\",\n      \"talla\": \"XL\"\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/uniformes/{{uniformeId}}", "host": ["{{baseUrl}}"], "path": ["api","uniformes","{{uniformeId}}"] }
+          }
+        },
+        {
+          "name": "Eliminar uniforme (ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/uniformes/{{uniformeId}}", "host": ["{{baseUrl}}"], "path": ["api","uniformes","{{uniformeId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "09 — Pedidos",
+      "description": "Flujo de estados: BORRADOR → CALCULADO → CONFIRMADO → EN_PRODUCCION → LISTO_PARA_ENTREGA → ENTREGADO",
+      "item": [
+        {
+          "name": "Listar pedidos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos?page=0&size=10",
+              "host": ["{{baseUrl}}"], "path": ["api","pedidos"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar pedidos por estado",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/estado?estado=BORRADOR&page=0&size=10",
+              "host": ["{{baseUrl}}"], "path": ["api","pedidos","estado"],
+              "query": [
+                { "key": "estado", "value": "BORRADOR", "description": "BORRADOR|CALCULADO|CONFIRMADO|EN_PRODUCCION|LISTO_PARA_ENTREGA|ENTREGADO|CANCELADO" },
+                { "key": "page",   "value": "0" },
+                { "key": "size",   "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar pedidos por colegio",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/colegio/{{colegioId}}?page=0&size=10",
+              "host": ["{{baseUrl}}"], "path": ["api","pedidos","colegio","{{colegioId}}"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener pedido por ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/pedidos/{{pedidoId}}", "host": ["{{baseUrl}}"], "path": ["api","pedidos","{{pedidoId}}"] }
+          }
+        },
+        {
+          "name": "Historial de cambios de estado",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/pedidos/{{pedidoId}}/historial", "host": ["{{baseUrl}}"], "path": ["api","pedidos","{{pedidoId}}","historial"] }
+          }
+        },
+        {
+          "name": "1. Crear pedido (→ BORRADOR)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) pm.collectionVariables.set('pedidoId', res.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"colegioId\": {{colegioId}},\n  \"fechaEstimadaEntrega\": \"2026-05-15\",\n  \"observaciones\": \"Pedido urgente para inicio de clases\",\n  \"detalles\": [\n    {\n      \"uniformeId\": {{uniformeId}},\n      \"cantidad\": 30,\n      \"talla\": \"M\"\n    },\n    {\n      \"uniformeId\": {{uniformeId}},\n      \"cantidad\": 20,\n      \"talla\": \"L\"\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/pedidos", "host": ["{{baseUrl}}"], "path": ["api","pedidos"] }
+          }
+        },
+        {
+          "name": "1b. Crear pedido con colegio nuevo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nuevoColegio\": {\n    \"nombre\": \"Colegio La Esperanza\",\n    \"direccion\": \"Calle 5 Av. 8, Zona 3\"\n  },\n  \"fechaEstimadaEntrega\": \"2026-06-01\",\n  \"observaciones\": \"Primer pedido del colegio nuevo\",\n  \"detalles\": [\n    {\n      \"uniformeId\": {{uniformeId}},\n      \"cantidad\": 15,\n      \"talla\": \"S\"\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/pedidos", "host": ["{{baseUrl}}"], "path": ["api","pedidos"] }
+          }
+        },
+        {
+          "name": "Actualizar pedido (solo BORRADOR)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"colegioId\": {{colegioId}},\n  \"fechaEstimadaEntrega\": \"2026-05-20\",\n  \"observaciones\": \"Pedido ajustado — cantidades revisadas\",\n  \"detalles\": [\n    {\n      \"uniformeId\": {{uniformeId}},\n      \"cantidad\": 25,\n      \"talla\": \"M\"\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/pedidos/{{pedidoId}}", "host": ["{{baseUrl}}"], "path": ["api","pedidos","{{pedidoId}}"] }
+          }
+        },
+        {
+          "name": "2. Calcular pedido (BORRADOR → CALCULADO)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/pedidos/{{pedidoId}}/calcular", "host": ["{{baseUrl}}"], "path": ["api","pedidos","{{pedidoId}}","calcular"] }
+          }
+        },
+        {
+          "name": "3. Confirmar pedido (CALCULADO → CONFIRMADO)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/pedidos/{{pedidoId}}/confirmar", "host": ["{{baseUrl}}"], "path": ["api","pedidos","{{pedidoId}}","confirmar"] }
+          }
+        },
+        {
+          "name": "4. Iniciar producción (CONFIRMADO → EN_PRODUCCION)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/pedidos/{{pedidoId}}/iniciar-produccion", "host": ["{{baseUrl}}"], "path": ["api","pedidos","{{pedidoId}}","iniciar-produccion"] }
+          }
+        },
+        {
+          "name": "5. Marcar listo (EN_PRODUCCION → LISTO_PARA_ENTREGA)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/pedidos/{{pedidoId}}/marcar-listo", "host": ["{{baseUrl}}"], "path": ["api","pedidos","{{pedidoId}}","marcar-listo"] }
+          }
+        },
+        {
+          "name": "6. Entregar pedido (LISTO_PARA_ENTREGA → ENTREGADO)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/pedidos/{{pedidoId}}/entregar", "host": ["{{baseUrl}}"], "path": ["api","pedidos","{{pedidoId}}","entregar"] }
+          }
+        },
+        {
+          "name": "Cancelar pedido",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Colegio canceló el contrato por problemas presupuestarios\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/pedidos/{{pedidoId}}/cancelar", "host": ["{{baseUrl}}"], "path": ["api","pedidos","{{pedidoId}}","cancelar"] }
+          }
+        },
+        {
+          "name": "Eliminar pedido (ADMIN — solo BORRADOR)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/pedidos/{{pedidoId}}", "host": ["{{baseUrl}}"], "path": ["api","pedidos","{{pedidoId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "10 — Calculadora",
+      "item": [
+        {
+          "name": "Verificar disponibilidad — POST",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"uniformeId\": {{uniformeId}},\n  \"cantidad\": 20,\n  \"talla\": \"M\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/calculadora/verificar", "host": ["{{baseUrl}}"], "path": ["api","calculadora","verificar"] }
+          }
+        },
+        {
+          "name": "Verificar disponibilidad — GET",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/calculadora/verificar/{{uniformeId}}?cantidad=20&talla=M",
+              "host": ["{{baseUrl}}"], "path": ["api","calculadora","verificar","{{uniformeId}}"],
+              "query": [
+                { "key": "cantidad", "value": "20" },
+                { "key": "talla",    "value": "M" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Calcular pedido completo — modo lista explícita",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prendas\": [\n    {\n      \"uniformeId\": {{uniformeId}},\n      \"cantidad\": 20,\n      \"talla\": \"M\"\n    },\n    {\n      \"uniformeId\": {{uniformeId}},\n      \"cantidad\": 15,\n      \"talla\": \"L\"\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/calculadora/pedido", "host": ["{{baseUrl}}"], "path": ["api","calculadora","pedido"] }
+          }
+        },
+        {
+          "name": "Calcular pedido completo — modo colegio",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"colegioId\": {{colegioId}},\n  \"cantidad\": 30,\n  \"talla\": \"M\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/calculadora/pedido", "host": ["{{baseUrl}}"], "path": ["api","calculadora","pedido"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "11 — Dashboard",
+      "item": [
+        {
+          "name": "Resumen general del dashboard",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/dashboard/resumen", "host": ["{{baseUrl}}"], "path": ["api","dashboard","resumen"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "12 — Reportes",
+      "item": [
+        {
+          "name": "Reporte GENERAL (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaInicio\": \"2026-01-01\",\n  \"fechaFin\": \"2026-04-08\",\n  \"tipoInforme\": \"GENERAL\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reporte", "host": ["{{baseUrl}}"], "path": ["api","reporte"] }
+          }
+        },
+        {
+          "name": "Reporte ENTRADAS (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaInicio\": \"2026-01-01\",\n  \"fechaFin\": \"2026-04-08\",\n  \"tipoInforme\": \"ENTRADAS\",\n  \"proveedorId\": {{proveedorId}}\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reporte", "host": ["{{baseUrl}}"], "path": ["api","reporte"] }
+          }
+        },
+        {
+          "name": "Reporte SALIDAS (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaInicio\": \"2026-01-01\",\n  \"fechaFin\": \"2026-04-08\",\n  \"tipoInforme\": \"SALIDAS\",\n  \"colegioId\": {{colegioId}}\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reporte", "host": ["{{baseUrl}}"], "path": ["api","reporte"] }
+          }
+        },
+        {
+          "name": "Reporte STOCK_BAJO (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaInicio\": \"2026-01-01\",\n  \"fechaFin\": \"2026-04-08\",\n  \"tipoInforme\": \"STOCK_BAJO\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reporte", "host": ["{{baseUrl}}"], "path": ["api","reporte"] }
+          }
+        },
+        {
+          "name": "Reporte ROTACION (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaInicio\": \"2026-01-01\",\n  \"fechaFin\": \"2026-04-08\",\n  \"tipoInforme\": \"ROTACION\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reporte", "host": ["{{baseUrl}}"], "path": ["api","reporte"] }
+          }
+        },
+        {
+          "name": "Reporte CONSUMO_PROMEDIO (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaInicio\": \"2026-01-01\",\n  \"fechaFin\": \"2026-04-08\",\n  \"tipoInforme\": \"CONSUMO_PROMEDIO\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reporte", "host": ["{{baseUrl}}"], "path": ["api","reporte"] }
+          }
+        },
+        {
+          "name": "Reporte PEDIDOS (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaInicio\": \"2026-01-01\",\n  \"fechaFin\": \"2026-04-08\",\n  \"tipoInforme\": \"PEDIDOS\",\n  \"estadoPedido\": \"ENTREGADO\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reporte", "host": ["{{baseUrl}}"], "path": ["api","reporte"] }
+          }
+        },
+        {
+          "name": "Exportar PDF",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaInicio\": \"2026-01-01\",\n  \"fechaFin\": \"2026-04-08\",\n  \"tipoInforme\": \"GENERAL\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reporte/exportar/pdf", "host": ["{{baseUrl}}"], "path": ["api","reporte","exportar","pdf"] }
+          }
+        },
+        {
+          "name": "Exportar Excel",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaInicio\": \"2026-01-01\",\n  \"fechaFin\": \"2026-04-08\",\n  \"tipoInforme\": \"GENERAL\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reporte/exportar/excel", "host": ["{{baseUrl}}"], "path": ["api","reporte","exportar","excel"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "13 — Predicción ML",
+      "item": [
+        {
+          "name": "Estado del servicio ML",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/prediccion/status", "host": ["{{baseUrl}}"], "path": ["api","prediccion","status"] }
+          }
+        },
+        {
+          "name": "Predecir agotamiento de un insumo",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/prediccion/{{insumoId}}", "host": ["{{baseUrl}}"], "path": ["api","prediccion","{{insumoId}}"] }
+          }
+        },
+        {
+          "name": "Predecir todos los insumos en riesgo",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/prediccion/todos", "host": ["{{baseUrl}}"], "path": ["api","prediccion","todos"] }
+          }
+        },
+        {
+          "name": "Re-entrenar modelos ML (ADMIN)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/prediccion/entrenar", "host": ["{{baseUrl}}"], "path": ["api","prediccion","entrenar"] }
+          }
+        }
+      ]
+    }
+
+  ]
+}

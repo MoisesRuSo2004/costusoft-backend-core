@@ -11,8 +11,8 @@ import java.util.List;
  * Contrato de negocio del módulo Pedido.
  *
  * Flujo principal:
- *   crear() → calcular() → confirmar() → iniciarProduccion()
- *             → marcarListo() → entregar()
+ * crear() → calcular() → confirmar() → iniciarProduccion()
+ * → marcarListo() → entregar()
  *
  * En cualquier estado no-final: cancelar()
  */
@@ -70,7 +70,8 @@ public interface PedidoService {
     PedidoDTO.Response marcarListo(Long id, String username);
 
     /**
-     * Registra la entrega al colegio. Confirma la Salida vinculada → stock descontado.
+     * Registra la entrega al colegio. Confirma la Salida vinculada → stock
+     * descontado.
      * Transición: LISTO_PARA_ENTREGA → ENTREGADO
      */
     PedidoDTO.Response entregar(Long id, String username);

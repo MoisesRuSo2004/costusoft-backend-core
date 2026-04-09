@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Gerson Ruiz/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/6222fc6f-47de-42bd-9f30-0dc8e17b7396/bcc02be6-2e4e-4e1c-83e0-c193ed4fc272/skills/xlsx/**)",
+      "Bash(python -c ':*)",
+      "Bash(python generate_postman.py)",
+      "Bash(python3 -c ':*)"
+    ]
+  }
+}

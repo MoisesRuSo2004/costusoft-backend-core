@@ -17,4 +17,10 @@ public interface UniformeService {
     void eliminar(Long id);
 
     long contarUniformes();
+
+    /**
+     * Retorna las tallas configuradas para una prenda.
+     * Útil para poblar el dropdown de talla en el frontend antes de calcular.
+     */
+    List<String> listarTallas(Long uniformeId);
 }

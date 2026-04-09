@@ -4,29 +4,32 @@ import com.costusoft.inventory_system.entity.Colegio;
 import com.costusoft.inventory_system.entity.Insumo;
 import com.costusoft.inventory_system.entity.Uniforme;
 import com.costusoft.inventory_system.entity.UniformeInsumo;
-import com.costusoft.inventory_system.repo.ColegioRepository;
-import com.costusoft.inventory_system.repo.InsumoRepository;
-import com.costusoft.inventory_system.repo.UniformeRepository;
 import com.costusoft.inventory_system.exception.BusinessException;
 import com.costusoft.inventory_system.exception.ResourceNotFoundException;
 import com.costusoft.inventory_system.module.uniforme.dto.UniformeDTO;
 import com.costusoft.inventory_system.module.uniforme.mapper.UniformeMapper;
+import com.costusoft.inventory_system.repo.ColegioRepository;
+import com.costusoft.inventory_system.repo.InsumoRepository;
+import com.costusoft.inventory_system.repo.UniformeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * Implementacion del servicio de uniformes.
+ * Implementación del servicio de uniformes.
  *
- * Responsabilidades:
- * - Validar que el colegio existe antes de crear el uniforme
- * - Resolver cada insumo requerido desde BD
- * - Mantener la relacion bidireccional Uniforme <-> UniformeInsumo
- * - En actualizacion: limpiar insumos anteriores y reemplazar
+ * Diseño: un Uniforme = tipo de prenda (ej. "Sueter Diario Hombre").
+ * Los insumos requeridos se almacenan en UniformeInsumo con su talla.
+ * Así, el mismo insumo puede tener cantidades distintas por talla S vs XL.
+ *
+ * Unicidad por colegio: (prenda, tipo, genero, colegioId).
+ * Permite "Sueter" en Diario Y en Educacion Fisica del mismo colegio.
  */
 @Slf4j
 @Service
@@ -34,195 +37,218 @@ import java.util.List;
 @Transactional
 public class UniformeServiceImpl implements UniformeService {
 
-    private final UniformeRepository uniformeRepository;
-    private final ColegioRepository colegioRepository;
-    private final InsumoRepository insumoRepository;
-    private final UniformeMapper uniformeMapper;
+        private final UniformeRepository uniformeRepository;
+        private final ColegioRepository colegioRepository;
+        private final InsumoRepository insumoRepository;
+        private final UniformeMapper uniformeMapper;
 
-    // ── Crear ────────────────────────────────────────────────────────────
+        // ── Crear ────────────────────────────────────────────────────────────
 
-    @Override
-    public UniformeDTO.Response crear(UniformeDTO.Request request) {
-        Colegio colegio = findColegioOrThrow(request.getColegioId());
+        @Override
+        public UniformeDTO.Response crear(UniformeDTO.Request request) {
+                Colegio colegio = findColegioOrThrow(request.getColegioId());
+                validarPrendaUnica(request.getPrenda(), request.getTipo(), request.getGenero(),
+                                request.getColegioId(), null);
 
-        validarPrendaUnicaPorColegio(request.getPrenda(), request.getColegioId(), null);
+                Uniforme uniforme = new Uniforme();
+                uniforme.setPrenda(request.getPrenda());
+                uniforme.setTipo(request.getTipo());
+                uniforme.setGenero(request.getGenero());
+                uniforme.setColegio(colegio);
 
-        Uniforme uniforme = new Uniforme();
-        uniforme.setPrenda(request.getPrenda());
-        uniforme.setTipo(request.getTipo());
-        uniforme.setTalla(request.getTalla());
-        uniforme.setGenero(request.getGenero());
-        uniforme.setColegio(colegio);
+                if (request.getInsumosRequeridos() != null && !request.getInsumosRequeridos().isEmpty()) {
+                        buildInsumosRequeridos(request.getInsumosRequeridos(), uniforme)
+                                        .forEach(uniforme::agregarInsumo);
+                }
 
-        // Resolver y asociar insumos requeridos si vienen
-        if (request.getInsumosRequeridos() != null && !request.getInsumosRequeridos().isEmpty()) {
-            List<UniformeInsumo> insumosRequeridos = buildInsumosRequeridos(
-                    request.getInsumosRequeridos(), uniforme);
-            insumosRequeridos.forEach(uniforme::agregarInsumo);
+                Uniforme guardado = uniformeRepository.save(uniforme);
+                log.info("Uniforme creado — id: {} | prenda: '{}' | tipo: '{}' | genero: '{}' | colegio: '{}'",
+                                guardado.getId(), guardado.getPrenda(), guardado.getTipo(),
+                                guardado.getGenero(), colegio.getNombre());
+
+                return toResponseCompleto(guardado);
         }
 
-        Uniforme guardado = uniformeRepository.save(uniforme);
-        log.info("Uniforme creado — id: {} | prenda: '{}' | colegio: '{}'",
-                guardado.getId(), guardado.getPrenda(), colegio.getNombre());
+        // ── Listar por colegio ───────────────────────────────────────────────
 
-        return toResponseCompleto(guardado);
-    }
-
-    // ── Listar por colegio ───────────────────────────────────────────────
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<UniformeDTO.Response> listarPorColegio(Long colegioId) {
-        findColegioOrThrow(colegioId);
-
-        return uniformeRepository
-                .findByColegioIdWithInsumos(colegioId)
-                .stream()
-                .map(this::toResponseCompleto)
-                .toList();
-    }
-
-    // ── Obtener por ID ───────────────────────────────────────────────────
-
-    @Override
-    @Transactional(readOnly = true)
-    public UniformeDTO.Response obtenerPorId(Long id) {
-        Uniforme uniforme = uniformeRepository.findByIdWithInsumos(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Uniforme", id));
-        return toResponseCompleto(uniforme);
-    }
-
-    // ── Actualizar ───────────────────────────────────────────────────────
-
-    @Override
-    public UniformeDTO.Response actualizar(Long id, UniformeDTO.Request request) {
-        Uniforme uniforme = uniformeRepository.findByIdWithInsumos(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Uniforme", id));
-
-        // Si cambia de colegio, validar que el nuevo colegio existe
-        if (!uniforme.getColegio().getId().equals(request.getColegioId())) {
-            Colegio nuevoColegio = findColegioOrThrow(request.getColegioId());
-            uniforme.setColegio(nuevoColegio);
+        @Override
+        @Transactional(readOnly = true)
+        public List<UniformeDTO.Response> listarPorColegio(Long colegioId) {
+                findColegioOrThrow(colegioId);
+                return uniformeRepository.findByColegioIdWithInsumos(colegioId)
+                                .stream()
+                                .map(this::toResponseCompleto)
+                                .toList();
         }
 
-        validarPrendaUnicaPorColegio(request.getPrenda(), request.getColegioId(), id);
+        // ── Obtener por ID ───────────────────────────────────────────────────
 
-        // Actualizar campos basicos
-        uniforme.setPrenda(request.getPrenda());
-        uniforme.setTipo(request.getTipo());
-        uniforme.setTalla(request.getTalla());
-        uniforme.setGenero(request.getGenero());
-
-        // Reemplazar insumos requeridos (limpiar + agregar nuevos)
-        uniforme.removerInsumo(null); // trigger para limpiar
-        uniforme.getInsumosRequeridos().clear();
-
-        if (request.getInsumosRequeridos() != null && !request.getInsumosRequeridos().isEmpty()) {
-            List<UniformeInsumo> nuevosInsumos = buildInsumosRequeridos(
-                    request.getInsumosRequeridos(), uniforme);
-            nuevosInsumos.forEach(uniforme::agregarInsumo);
+        @Override
+        @Transactional(readOnly = true)
+        public UniformeDTO.Response obtenerPorId(Long id) {
+                Uniforme uniforme = uniformeRepository.findByIdWithInsumos(id)
+                                .orElseThrow(() -> new ResourceNotFoundException("Uniforme", id));
+                return toResponseCompleto(uniforme);
         }
 
-        Uniforme actualizado = uniformeRepository.save(uniforme);
-        log.info("Uniforme actualizado — id: {}", id);
+        // ── Listar tallas disponibles ────────────────────────────────────────
 
-        return toResponseCompleto(actualizado);
-    }
-
-    // ── Eliminar ─────────────────────────────────────────────────────────
-
-    @Override
-    public void eliminar(Long id) {
-        Uniforme uniforme = uniformeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Uniforme", id));
-        uniformeRepository.delete(uniforme);
-        log.info("Uniforme eliminado — id: {} | prenda: '{}'", id, uniforme.getPrenda());
-    }
-
-    // ── Contar ───────────────────────────────────────────────────────────
-
-    @Override
-    @Transactional(readOnly = true)
-    public long contarUniformes() {
-        return uniformeRepository.count();
-    }
-
-    // ── Helpers privados ─────────────────────────────────────────────────
-
-    private Colegio findColegioOrThrow(Long colegioId) {
-        return colegioRepository.findById(colegioId)
-                .orElseThrow(() -> new ResourceNotFoundException("Colegio", colegioId));
-    }
-
-    /**
-     * Valida que no exista ya una prenda con el mismo nombre
-     * dentro del mismo colegio (combinacion unica).
-     */
-    private void validarPrendaUnicaPorColegio(String prenda, Long colegioId, Long idExcluido) {
-        boolean existe = (idExcluido == null)
-                ? uniformeRepository.existsByPrendaIgnoreCaseAndColegioId(prenda.trim(), colegioId)
-                : uniformeRepository.existsByPrendaIgnoreCaseAndColegioId(prenda.trim(), colegioId)
-                        && !uniformeRepository.findById(idExcluido)
-                                .map(u -> u.getPrenda().equalsIgnoreCase(prenda.trim()))
-                                .orElse(false);
-
-        if (existe && idExcluido == null) {
-            throw new BusinessException(
-                    "Ya existe la prenda '" + prenda.trim() + "' en este colegio");
-        }
-    }
-
-    /**
-     * Construye la lista de UniformeInsumo resolviendo cada insumo desde BD.
-     */
-    private List<UniformeInsumo> buildInsumosRequeridos(
-            List<UniformeDTO.InsumoRequeridoRequest> requests,
-            Uniforme uniforme) {
-
-        List<UniformeInsumo> resultado = new ArrayList<>();
-
-        for (UniformeDTO.InsumoRequeridoRequest ir : requests) {
-            Insumo insumo = insumoRepository.findById(ir.getInsumoId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Insumo", ir.getInsumoId()));
-
-            UniformeInsumo ui = UniformeInsumo.builder()
-                    .uniforme(uniforme)
-                    .insumo(insumo)
-                    .cantidadBase(ir.getCantidadBase())
-                    .unidadMedida(ir.getUnidadMedida())
-                    .build();
-
-            resultado.add(ui);
+        @Override
+        @Transactional(readOnly = true)
+        public List<String> listarTallas(Long uniformeId) {
+                if (!uniformeRepository.existsById(uniformeId)) {
+                        throw new ResourceNotFoundException("Uniforme", uniformeId);
+                }
+                return uniformeRepository.findDistinctTallasByUniformeId(uniformeId);
         }
 
-        return resultado;
-    }
+        // ── Actualizar ───────────────────────────────────────────────────────
 
-    /**
-     * Construye el Response completo mapeando insumos requeridos.
-     */
-    private UniformeDTO.Response toResponseCompleto(Uniforme uniforme) {
-        List<UniformeDTO.InsumoRequeridoResponse> insumosResponse = uniforme
-                .getInsumosRequeridos()
-                .stream()
-                .map(uniformeMapper::insumoRequeridoToResponse)
-                .toList();
+        @Override
+        public UniformeDTO.Response actualizar(Long id, UniformeDTO.Request request) {
+                Uniforme uniforme = uniformeRepository.findByIdWithInsumos(id)
+                                .orElseThrow(() -> new ResourceNotFoundException("Uniforme", id));
 
-        return UniformeDTO.Response.builder()
-                .id(uniforme.getId())
-                .prenda(uniforme.getPrenda())
-                .tipo(uniforme.getTipo())
-                .talla(uniforme.getTalla())
-                .genero(uniforme.getGenero())
-                .colegioId(uniforme.getColegio().getId())
-                .colegioNombre(uniforme.getColegio().getNombre())
-                .insumosRequeridos(insumosResponse)
-                .createdAt(uniforme.getCreatedAt() != null
-                        ? uniforme.getCreatedAt().toString()
-                        : null)
-                .updatedAt(uniforme.getUpdatedAt() != null
-                        ? uniforme.getUpdatedAt().toString()
-                        : null)
-                .build();
-    }
+                Long colegioDestino = request.getColegioId();
+                if (!uniforme.getColegio().getId().equals(colegioDestino)) {
+                        uniforme.setColegio(findColegioOrThrow(colegioDestino));
+                }
+
+                validarPrendaUnica(request.getPrenda(), request.getTipo(), request.getGenero(),
+                                colegioDestino, id);
+
+                uniforme.setPrenda(request.getPrenda());
+                uniforme.setTipo(request.getTipo());
+                uniforme.setGenero(request.getGenero());
+
+                // Reemplazar insumos por talla completamente
+                uniforme.getInsumosRequeridos().clear();
+                if (request.getInsumosRequeridos() != null && !request.getInsumosRequeridos().isEmpty()) {
+                        buildInsumosRequeridos(request.getInsumosRequeridos(), uniforme)
+                                        .forEach(uniforme::agregarInsumo);
+                }
+
+                Uniforme actualizado = uniformeRepository.save(uniforme);
+                log.info("Uniforme actualizado — id: {}", id);
+                return toResponseCompleto(actualizado);
+        }
+
+        // ── Eliminar ─────────────────────────────────────────────────────────
+
+        @Override
+        public void eliminar(Long id) {
+                Uniforme uniforme = uniformeRepository.findById(id)
+                                .orElseThrow(() -> new ResourceNotFoundException("Uniforme", id));
+                uniformeRepository.delete(uniforme);
+                log.info("Uniforme eliminado — id: {} | prenda: '{}'", id, uniforme.getPrenda());
+        }
+
+        // ── Contar ───────────────────────────────────────────────────────────
+
+        @Override
+        @Transactional(readOnly = true)
+        public long contarUniformes() {
+                return uniformeRepository.count();
+        }
+
+        // ── Helpers privados ─────────────────────────────────────────────────
+
+        private Colegio findColegioOrThrow(Long colegioId) {
+                return colegioRepository.findById(colegioId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Colegio", colegioId));
+        }
+
+        /**
+         * Valida unicidad (prenda, tipo, genero, colegio).
+         * Normaliza nulls a "" para la comparación.
+         */
+        private void validarPrendaUnica(String prenda, String tipo, String genero,
+                        Long colegioId, Long idExcluido) {
+                String tipoNorm = tipo != null ? tipo.trim() : "";
+                String generoNorm = genero != null ? genero.trim() : "";
+                String prendaNorm = prenda != null ? prenda.trim() : "";
+
+                boolean existe = uniformeRepository
+                                .existsByPrendaIgnoreCaseAndTipoIgnoreCaseAndGeneroIgnoreCaseAndColegioId(
+                                                prendaNorm, tipoNorm, generoNorm, colegioId);
+
+                if (!existe)
+                        return;
+
+                // Si existe, verificar si es el mismo registro (actualización)
+                if (idExcluido != null) {
+                        boolean esMismoRegistro = uniformeRepository.findById(idExcluido)
+                                        .map(u -> u.getPrenda().equalsIgnoreCase(prendaNorm)
+                                                        && (u.getTipo() == null ? "" : u.getTipo().trim())
+                                                                        .equalsIgnoreCase(tipoNorm)
+                                                        && (u.getGenero() == null ? "" : u.getGenero().trim())
+                                                                        .equalsIgnoreCase(generoNorm))
+                                        .orElse(false);
+                        if (esMismoRegistro)
+                                return; // No es duplicado — es el mismo
+                }
+
+                throw new BusinessException(
+                                "Ya existe la prenda '" + prendaNorm + "' con tipo '" + tipoNorm
+                                                + "' y género '" + generoNorm + "' en este colegio.");
+        }
+
+        /**
+         * Construye la lista de UniformeInsumo (con talla) resolviendo insumos desde
+         * BD.
+         */
+        private List<UniformeInsumo> buildInsumosRequeridos(
+                        List<UniformeDTO.InsumoRequeridoRequest> requests,
+                        Uniforme uniforme) {
+
+                List<UniformeInsumo> resultado = new ArrayList<>();
+                for (UniformeDTO.InsumoRequeridoRequest ir : requests) {
+                        Insumo insumo = insumoRepository.findById(ir.getInsumoId())
+                                        .orElseThrow(() -> new ResourceNotFoundException("Insumo", ir.getInsumoId()));
+
+                        resultado.add(UniformeInsumo.builder()
+                                        .uniforme(uniforme)
+                                        .insumo(insumo)
+                                        .cantidadBase(ir.getCantidadBase())
+                                        .unidadMedida(ir.getUnidadMedida())
+                                        .talla(ir.getTalla().trim().toUpperCase())
+                                        .build());
+                }
+                return resultado;
+        }
+
+        /**
+         * Construye el Response completo incluyendo la lista de tallas disponibles.
+         */
+        private UniformeDTO.Response toResponseCompleto(Uniforme uniforme) {
+                List<UniformeDTO.InsumoRequeridoResponse> insumosResponse = uniforme
+                                .getInsumosRequeridos()
+                                .stream()
+                                .map(uniformeMapper::insumoRequeridoToResponse)
+                                .toList();
+
+                // Tallas distintas y ordenadas extraídas de los insumos configurados
+                List<String> tallas = uniforme.getInsumosRequeridos().stream()
+                                .map(UniformeInsumo::getTalla)
+                                .distinct()
+                                .sorted(Comparator.naturalOrder())
+                                .collect(Collectors.toList());
+
+                return UniformeDTO.Response.builder()
+                                .id(uniforme.getId())
+                                .prenda(uniforme.getPrenda())
+                                .tipo(uniforme.getTipo())
+                                .genero(uniforme.getGenero())
+                                .colegioId(uniforme.getColegio().getId())
+                                .colegioNombre(uniforme.getColegio().getNombre())
+                                .tallas(tallas)
+                                .insumosRequeridos(insumosResponse)
+                                .createdAt(uniforme.getCreatedAt() != null
+                                                ? uniforme.getCreatedAt().toString()
+                                                : null)
+                                .updatedAt(uniforme.getUpdatedAt() != null
+                                                ? uniforme.getUpdatedAt().toString()
+                                                : null)
+                                .build();
+        }
 }

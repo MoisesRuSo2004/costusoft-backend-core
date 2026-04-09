@@ -43,10 +43,9 @@ public class DetallePedido extends AuditableEntity {
     private Integer cantidad;
 
     /**
-     * Talla solicitada para esta prenda en el pedido.
-     * El usuario la especifica al agregar el uniforme al pedido.
-     * Si no se indica, se toma la talla del uniforme como referencia.
-     * Ejemplos: "4", "6", "8", "10", "S", "M", "L", "XL", "Única"
+     * Talla solicitada para esta prenda en el pedido. OBLIGATORIA.
+     * Determina qué insumos de UniformeInsumo se usan al calcular y generar la Salida.
+     * Ejemplos: "S", "M", "L", "XL", "06-08", "10-12", "14-16"
      */
     @Size(max = 10, message = "La talla no puede superar 10 caracteres")
     @Column(name = "talla", length = 10)

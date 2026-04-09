@@ -33,58 +33,87 @@ import java.util.List;
 @Tag(name = "Uniformes", description = "Gestion de uniformes y sus insumos requeridos")
 public class UniformeController {
 
-    private final UniformeService uniformeService;
+        private final UniformeService uniformeService;
 
-    @Operation(summary = "Listar uniformes de un colegio con sus insumos requeridos")
-    @GetMapping("/colegio/{colegioId}")
-    public ResponseEntity<ApiResponse<List<UniformeDTO.Response>>> listarPorColegio(
-            @PathVariable Long colegioId) {
+        @Operation(summary = "Listar uniformes de un colegio con sus insumos requeridos")
+        @GetMapping("/colegio/{colegioId}")
+        public ResponseEntity<ApiResponse<List<UniformeDTO.Response>>> listarPorColegio(
+                        @PathVariable Long colegioId) {
 
-        List<UniformeDTO.Response> uniformes = uniformeService.listarPorColegio(colegioId);
-        return ResponseEntity.ok(
-                ApiResponse.ok(
-                        uniformes.isEmpty()
-                                ? "No hay uniformes registrados para este colegio"
-                                : uniformes.size() + " uniforme(s) encontrado(s)",
-                        uniformes));
-    }
+                List<UniformeDTO.Response> uniformes = uniformeService.listarPorColegio(colegioId);
+                return ResponseEntity.ok(
+                                ApiResponse.ok(
+                                                uniformes.isEmpty()
+                                                                ? "No hay uniformes registrados para este colegio"
+                                                                : uniformes.size() + " uniforme(s) encontrado(s)",
+                                                uniformes));
+        }
 
-    @Operation(summary = "Obtener uniforme por ID con insumos requeridos")
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<UniformeDTO.Response>> obtenerPorId(
-            @PathVariable Long id) {
+        @Operation(summary = "Obtener uniforme por ID con insumos requeridos")
+        @GetMapping("/{id}")
+        public ResponseEntity<ApiResponse<UniformeDTO.Response>> obtenerPorId(
+                        @PathVariable Long id) {
 
-        return ResponseEntity.ok(
-                ApiResponse.ok("Uniforme encontrado", uniformeService.obtenerPorId(id)));
-    }
+                return ResponseEntity.ok(
+                                ApiResponse.ok("Uniforme encontrado", uniformeService.obtenerPorId(id)));
+        }
 
-    @Operation(summary = "Crear uniforme", description = "Crea el uniforme y asocia los insumos requeridos en la misma operacion.")
-    @PostMapping
-    public ResponseEntity<ApiResponse<UniformeDTO.Response>> crear(
-            @Valid @RequestBody UniformeDTO.Request request) {
+        @Operation(summary = "Crear uniforme", description = "Crea el uniforme y asocia los insumos requeridos en la misma operacion.")
+        @PostMapping
+        public ResponseEntity<ApiResponse<UniformeDTO.Response>> crear(
+                        @Valid @RequestBody UniformeDTO.Request request) {
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("Uniforme creado exitosamente",
-                        uniformeService.crear(request)));
-    }
+                return ResponseEntity
+                                .status(HttpStatus.CREATED)
+                                .body(ApiResponse.ok("Uniforme creado exitosamente",
+                                                uniformeService.crear(request)));
+        }
 
-    @Operation(summary = "Actualizar uniforme", description = "Actualiza campos del uniforme y reemplaza completamente la lista de insumos requeridos.")
-    @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<UniformeDTO.Response>> actualizar(
-            @PathVariable Long id,
-            @Valid @RequestBody UniformeDTO.Request request) {
+        @Operation(summary = "Actualizar uniforme", description = "Actualiza campos del uniforme y reemplaza completamente la lista de insumos requeridos.")
+        @PutMapping("/{id}")
+        public ResponseEntity<ApiResponse<UniformeDTO.Response>> actualizar(
+                        @PathVariable Long id,
+                        @Valid @RequestBody UniformeDTO.Request request) {
 
-        return ResponseEntity.ok(
-                ApiResponse.ok("Uniforme actualizado exitosamente",
-                        uniformeService.actualizar(id, request)));
-    }
+                return ResponseEntity.ok(
+                                ApiResponse.ok("Uniforme actualizado exitosamente",
+                                                uniformeService.actualizar(id, request)));
+        }
 
-    @Operation(summary = "Eliminar uniforme", description = "Solo ADMIN.")
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
-        uniformeService.eliminar(id);
-        return ResponseEntity.ok(ApiResponse.ok("Uniforme eliminado exitosamente"));
-    }
+        @Operation(summary = "Tallas disponibles de una prenda", description = """
+                        Retorna las tallas configuradas para la prenda indicada.
+
+                        Úsalo para poblar el dropdown de talla en el formulario de pedido:
+                        1. El usuario selecciona el colegio → GET /api/uniformes/colegio/{id}
+                        2. Selecciona la prenda del listado
+                        3. Llama a este endpoint → muestra el dropdown de tallas
+                        4. Selecciona talla + ingresa cantidad → agrega al pedido
+
+                        Ejemplo de respuesta:
+                        ```json
+                        ["06-08", "10-12", "14-16"]
+                        ```
+                        o
+                        ```json
+                        ["L", "M", "S", "XL"]
+                        ```
+                        """)
+        @GetMapping("/{id}/tallas")
+        public ResponseEntity<ApiResponse<List<String>>> listarTallas(@PathVariable Long id) {
+                List<String> tallas = uniformeService.listarTallas(id);
+                return ResponseEntity.ok(
+                                ApiResponse.ok(
+                                                tallas.isEmpty()
+                                                                ? "Esta prenda no tiene tallas configuradas"
+                                                                : tallas.size() + " talla(s) disponible(s)",
+                                                tallas));
+        }
+
+        @Operation(summary = "Eliminar uniforme", description = "Solo ADMIN.")
+        @DeleteMapping("/{id}")
+        @PreAuthorize("hasRole('ADMIN')")
+        public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
+                uniformeService.eliminar(id);
+                return ResponseEntity.ok(ApiResponse.ok("Uniforme eliminado exitosamente"));
+        }
 }
