@@ -1,6 +1,5 @@
 package com.costusoft.inventory_system.module.uniforme.mapper;
 
-import com.costusoft.inventory_system.entity.Uniforme;
 import com.costusoft.inventory_system.entity.UniformeInsumo;
 import com.costusoft.inventory_system.module.uniforme.dto.UniformeDTO;
 import org.mapstruct.*;
@@ -11,15 +10,9 @@ import java.time.format.DateTimeFormatter;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface UniformeMapper {
 
-    // ── Entidad → Response ───────────────────────────────────────────────
-
-    @Mapping(target = "colegioId", source = "colegio.id")
-    @Mapping(target = "colegioNombre", source = "colegio.nombre")
-    @Mapping(target = "createdAt", expression = "java(formatDateTime(uniforme.getCreatedAt()))")
-    @Mapping(target = "updatedAt", expression = "java(formatDateTime(uniforme.getUpdatedAt()))")
-    UniformeDTO.Response toResponse(Uniforme uniforme);
-
     // ── UniformeInsumo → InsumoRequeridoResponse ──────────────────────────
+    // MapStruct auto-mapea: id, cantidadBase, unidadMedida, talla
+    // Solo se necesita expresar las que tienen fuente distinta
 
     @Mapping(target = "insumoId", source = "insumo.id")
     @Mapping(target = "nombreInsumo", source = "insumo.nombre")

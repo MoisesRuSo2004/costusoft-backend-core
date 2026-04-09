@@ -9,16 +9,17 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 
 /**
- * Tabla de unión entre Uniforme e Insumo.
+ * Tabla de unión entre Uniforme e Insumo, discriminada por talla.
  *
- * Registra cuánto de cada insumo (y en qué unidad) requiere
- * fabricar una unidad de un uniforme determinado.
+ * Registra cuánto de cada insumo (y en qué unidad) requiere fabricar
+ * UNA unidad de la prenda en la TALLA indicada.
  *
- * PK compuesta: (uniforme_id, insumo_id)
+ * Unique: (uniforme_id, insumo_id, talla)
+ * → misma prenda puede necesitar cantidades distintas por talla.
  */
 @Entity
 @Table(name = "uniforme_insumos", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_uniforme_insumo", columnNames = { "uniforme_id", "insumo_id" })
+        @UniqueConstraint(name = "uk_uniforme_insumo_talla", columnNames = { "uniforme_id", "insumo_id", "talla" })
 })
 @Getter
 @Setter
@@ -50,4 +51,14 @@ public class UniformeInsumo extends AuditableEntity {
     @Size(max = 30)
     @Column(name = "unidad_medida", nullable = false, length = 30)
     private String unidadMedida;
+
+    /**
+     * Talla para la que aplica esta cantidad de insumo.
+     * Ejemplos: "S", "M", "L", "XL", "06-08", "10-12", "14-16", "UNICA".
+     * Permite que una misma prenda tenga insumos distintos por talla.
+     */
+    @NotBlank(message = "La talla es obligatoria")
+    @Size(max = 10, message = "La talla no puede superar 10 caracteres")
+    @Column(name = "talla", nullable = false, length = 10)
+    private String talla;
 }

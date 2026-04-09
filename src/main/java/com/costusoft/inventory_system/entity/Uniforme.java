@@ -33,14 +33,18 @@ public class Uniforme extends AuditableEntity {
     @Column(name = "prenda", nullable = false, length = 100)
     private String prenda;
 
+    /**
+     * Tipo de uniforme: "Diario" | "Educacion Fisica".
+     * Libre texto para no limitar futuras categorías.
+     */
     @Size(max = 50, message = "El tipo no puede superar 50 caracteres")
     @Column(name = "tipo", length = 50)
     private String tipo;
 
-    @Size(max = 10, message = "La talla no puede superar 10 caracteres")
-    @Column(name = "talla", length = 10)
-    private String talla;
-
+    /**
+     * Género al que aplica: "Hombre" | "Mujer" | "Unisex".
+     * null = aplica a todos.
+     */
     @Size(max = 20, message = "El género no puede superar 20 caracteres")
     @Column(name = "genero", length = 20)
     private String genero;

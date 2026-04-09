@@ -11,10 +11,10 @@ import java.util.List;
  * DTOs del módulo Salida.
  *
  * Flujo BODEGA:
- *   - Request       → USER/ADMIN crea solicitud PENDIENTE (sin descontar stock)
- *   - RechazarRequest → BODEGA/ADMIN rechaza con motivo
- *   - Response      → incluye estado, confirmadaPor, motivoRechazo para que el
- *                     frontend actualice la UI sin una segunda consulta
+ * - Request → USER/ADMIN crea solicitud PENDIENTE (sin descontar stock)
+ * - RechazarRequest → BODEGA/ADMIN rechaza con motivo
+ * - Response → incluye estado, confirmadaPor, motivoRechazo para que el
+ * frontend actualice la UI sin una segunda consulta
  */
 public class SalidaDTO {
 

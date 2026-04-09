@@ -34,45 +34,45 @@ import java.time.LocalDate;
 @Tag(name = "Reportes", description = "Generacion y exportacion de reportes de inventario")
 public class ReporteController {
 
-    private final ReporteService reporteService;
+        private final ReporteService reporteService;
 
-    @Operation(summary = "Generar reporte en JSON", description = "Previsualiza el reporte antes de exportar.")
-    @PostMapping
-    public ResponseEntity<ApiResponse<ReporteDTO.Response>> generar(
-            @Valid @RequestBody ReporteDTO.FiltroRequest filtro) {
+        @Operation(summary = "Generar reporte en JSON", description = "Previsualiza el reporte antes de exportar.")
+        @PostMapping
+        public ResponseEntity<ApiResponse<ReporteDTO.Response>> generar(
+                        @Valid @RequestBody ReporteDTO.FiltroRequest filtro) {
 
-        return ResponseEntity.ok(
-                ApiResponse.ok("Reporte generado", reporteService.generarReporte(filtro)));
-    }
+                return ResponseEntity.ok(
+                                ApiResponse.ok("Reporte generado", reporteService.generarReporte(filtro)));
+        }
 
-    @Operation(summary = "Exportar reporte en PDF", description = "Descarga el reporte como archivo PDF.")
-    @PostMapping("/exportar/pdf")
-    public ResponseEntity<byte[]> exportarPdf(
-            @Valid @RequestBody ReporteDTO.FiltroRequest filtro) {
+        @Operation(summary = "Exportar reporte en PDF", description = "Descarga el reporte como archivo PDF.")
+        @PostMapping("/exportar/pdf")
+        public ResponseEntity<byte[]> exportarPdf(
+                        @Valid @RequestBody ReporteDTO.FiltroRequest filtro) {
 
-        ByteArrayInputStream pdf = reporteService.exportarPdf(filtro);
-        String nombreArchivo = "reporte-inventario-" + LocalDate.now() + ".pdf";
+                ByteArrayInputStream pdf = reporteService.exportarPdf(filtro);
+                String nombreArchivo = "reporte-inventario-" + LocalDate.now() + ".pdf";
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + nombreArchivo + "\"")
-                .contentType(MediaType.APPLICATION_PDF)
-                .body(pdf.readAllBytes());
-    }
+                return ResponseEntity.ok()
+                                .header(HttpHeaders.CONTENT_DISPOSITION,
+                                                "attachment; filename=\"" + nombreArchivo + "\"")
+                                .contentType(MediaType.APPLICATION_PDF)
+                                .body(pdf.readAllBytes());
+        }
 
-    @Operation(summary = "Exportar reporte en Excel", description = "Descarga el reporte como archivo Excel (.xlsx).")
-    @PostMapping("/exportar/excel")
-    public ResponseEntity<byte[]> exportarExcel(
-            @Valid @RequestBody ReporteDTO.FiltroRequest filtro) {
+        @Operation(summary = "Exportar reporte en Excel", description = "Descarga el reporte como archivo Excel (.xlsx).")
+        @PostMapping("/exportar/excel")
+        public ResponseEntity<byte[]> exportarExcel(
+                        @Valid @RequestBody ReporteDTO.FiltroRequest filtro) {
 
-        ByteArrayInputStream excel = reporteService.exportarExcel(filtro);
-        String nombreArchivo = "reporte-inventario-" + LocalDate.now() + ".xlsx";
+                ByteArrayInputStream excel = reporteService.exportarExcel(filtro);
+                String nombreArchivo = "reporte-inventario-" + LocalDate.now() + ".xlsx";
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + nombreArchivo + "\"")
-                .contentType(MediaType.parseMediaType(
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .body(excel.readAllBytes());
-    }
+                return ResponseEntity.ok()
+                                .header(HttpHeaders.CONTENT_DISPOSITION,
+                                                "attachment; filename=\"" + nombreArchivo + "\"")
+                                .contentType(MediaType.parseMediaType(
+                                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                                .body(excel.readAllBytes());
+        }
 }

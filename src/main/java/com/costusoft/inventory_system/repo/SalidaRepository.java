@@ -24,7 +24,30 @@ public interface SalidaRepository extends JpaRepository<Salida, Long> {
 
     List<Salida> findByFechaBetween(LocalDate inicio, LocalDate fin);
 
+    /** Para reportes — evita N+1 al acceder a detalles e insumos */
+    @Query("""
+                SELECT DISTINCT s FROM Salida s
+                LEFT JOIN FETCH s.detalles d
+                LEFT JOIN FETCH d.insumo
+                LEFT JOIN FETCH s.colegio
+                WHERE s.fecha BETWEEN :inicio AND :fin
+            """)
+    List<Salida> findByFechaBetweenWithDetalles(@Param("inicio") LocalDate inicio, @Param("fin") LocalDate fin);
+
     List<Salida> findByColegioIdAndFechaBetween(Long colegioId, LocalDate inicio, LocalDate fin);
+
+    /** Para reportes filtrados por colegio — evita N+1 */
+    @Query("""
+                SELECT DISTINCT s FROM Salida s
+                LEFT JOIN FETCH s.detalles d
+                LEFT JOIN FETCH d.insumo
+                LEFT JOIN FETCH s.colegio
+                WHERE s.colegio.id = :colegioId AND s.fecha BETWEEN :inicio AND :fin
+            """)
+    List<Salida> findByColegioIdAndFechaBetweenWithDetalles(
+            @Param("colegioId") Long colegioId,
+            @Param("inicio") LocalDate inicio,
+            @Param("fin") LocalDate fin);
 
     @Query("""
                 SELECT s FROM Salida s
