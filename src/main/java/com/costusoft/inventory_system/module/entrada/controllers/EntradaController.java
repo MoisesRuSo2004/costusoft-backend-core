@@ -23,10 +23,10 @@ import org.springframework.web.bind.annotation.*;
  * Controller REST del módulo Entrada.
  *
  * Flujo BODEGA:
- *   POST   /api/entradas              → USER/ADMIN crea solicitud PENDIENTE
- *   GET    /api/entradas/estado       → ADMIN/USER/BODEGA filtra por estado
- *   PATCH  /api/entradas/{id}/confirmar → ADMIN/BODEGA confirma y suma stock
- *   PATCH  /api/entradas/{id}/rechazar  → ADMIN/BODEGA rechaza con motivo
+ * POST /api/entradas → USER/ADMIN crea solicitud PENDIENTE
+ * GET /api/entradas/estado → ADMIN/USER/BODEGA filtra por estado
+ * PATCH /api/entradas/{id}/confirmar → ADMIN/BODEGA confirma y suma stock
+ * PATCH /api/entradas/{id}/rechazar → ADMIN/BODEGA rechaza con motivo
  */
 @Validated
 @RestController
@@ -53,8 +53,7 @@ public class EntradaController {
 
     // ── Listar por estado ────────────────────────────────────────────────
 
-    @Operation(summary = "Listar entradas por estado",
-               description = "Permite a BODEGA consultar las solicitudes PENDIENTES que debe gestionar.")
+    @Operation(summary = "Listar entradas por estado", description = "Permite a BODEGA consultar las solicitudes PENDIENTES que debe gestionar.")
     @GetMapping("/estado")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'BODEGA')")
     public ResponseEntity<ApiResponse<PageDTO<EntradaDTO.Response>>> listarPorEstado(
@@ -79,8 +78,7 @@ public class EntradaController {
 
     // ── Crear ────────────────────────────────────────────────────────────
 
-    @Operation(summary = "Registrar solicitud de entrada",
-               description = "Crea la solicitud en estado PENDIENTE. El stock NO se modifica hasta que BODEGA/ADMIN confirme.")
+    @Operation(summary = "Registrar solicitud de entrada", description = "Crea la solicitud en estado PENDIENTE. El stock NO se modifica hasta que BODEGA/ADMIN confirme.")
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<ApiResponse<EntradaDTO.Response>> crear(
@@ -94,8 +92,7 @@ public class EntradaController {
 
     // ── Confirmar ────────────────────────────────────────────────────────
 
-    @Operation(summary = "Confirmar entrada",
-               description = "BODEGA/ADMIN verifica físicamente y confirma. El stock se incrementa de forma atómica.")
+    @Operation(summary = "Confirmar entrada", description = "BODEGA/ADMIN verifica físicamente y confirma. El stock se incrementa de forma atómica.")
     @PatchMapping("/{id}/confirmar")
     @PreAuthorize("hasAnyRole('ADMIN', 'BODEGA')")
     public ResponseEntity<ApiResponse<EntradaDTO.Response>> confirmar(
@@ -109,8 +106,7 @@ public class EntradaController {
 
     // ── Rechazar ─────────────────────────────────────────────────────────
 
-    @Operation(summary = "Rechazar entrada",
-               description = "BODEGA/ADMIN rechaza con motivo. El stock permanece intacto.")
+    @Operation(summary = "Rechazar entrada", description = "BODEGA/ADMIN rechaza con motivo. El stock permanece intacto.")
     @PatchMapping("/{id}/rechazar")
     @PreAuthorize("hasAnyRole('ADMIN', 'BODEGA')")
     public ResponseEntity<ApiResponse<EntradaDTO.Response>> rechazar(
@@ -125,8 +121,7 @@ public class EntradaController {
 
     // ── Actualizar ───────────────────────────────────────────────────────
 
-    @Operation(summary = "Actualizar entrada PENDIENTE",
-               description = "Solo se permite editar entradas en estado PENDIENTE. El stock no se modifica.")
+    @Operation(summary = "Actualizar entrada PENDIENTE", description = "Solo se permite editar entradas en estado PENDIENTE. El stock no se modifica.")
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<ApiResponse<EntradaDTO.Response>> actualizar(
@@ -139,8 +134,7 @@ public class EntradaController {
 
     // ── Eliminar ─────────────────────────────────────────────────────────
 
-    @Operation(summary = "Eliminar entrada",
-               description = "Solo ADMIN. No se permite eliminar entradas CONFIRMADAS (el stock ya fue aplicado).")
+    @Operation(summary = "Eliminar entrada", description = "Solo ADMIN. No se permite eliminar entradas CONFIRMADAS (el stock ya fue aplicado).")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {

@@ -6,7 +6,9 @@
       "Bash(python generate_postman.py)",
       "Bash(python3 -c ':*)",
       "Bash(ls /c/dev/PA/inventory-system/src/main/java/com/costusoft/inventory_system/module/*/controllers/)",
-      "Bash(xargs -I {} basename {})"
+      "Bash(xargs -I {} basename {})",
+      "Bash(ls -la ./src/main/java/com/costusoft/inventory_system/module/*/controllers/)",
+      "Bash(grep \"\\\\.java$\")"
     ]
   }
 }
