@@ -53,13 +53,36 @@ public class Usuario extends AuditableEntity {
     @Builder.Default
     private boolean activo = true;
 
+    /**
+     * Indica si el usuario completo el flujo de activacion de cuenta.
+     * false = cuenta recien creada por el admin, pendiente de que el usuario
+     *         establezca su contrasena via el link de activacion.
+     * true  = el usuario ya definio su contrasena y puede iniciar sesion.
+     */
+    @Column(name = "cuenta_activada", nullable = false)
+    @Builder.Default
+    private boolean cuentaActivada = false;
+
+    /**
+     * Colegio al que pertenece este usuario.
+     * Solo aplica para usuarios con rol INSTITUCION — representa al coordinador
+     * del colegio que accede al portal institucional.
+     * Null para ADMIN, USER y BODEGA.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "colegio_id",
+                foreignKey = @ForeignKey(name = "fk_usuario_colegio"))
+    private Colegio colegio;
+
     // ── Enum de roles ───────────────────────────────────────────────────
     public enum Rol {
         /** Acceso total al sistema: usuarios, proveedores, stock, reportes. */
         ADMIN,
         /** Secretaria/operador: crea solicitudes de entradas y salidas. */
         USER,
-        /** Operador de almacén: confirma o rechaza solicitudes PENDIENTES. No crea solicitudes. */
-        BODEGA
+        /** Operador de almacen: confirma o rechaza solicitudes PENDIENTES. No crea solicitudes. */
+        BODEGA,
+        /** Coordinador de colegio: accede solo a los datos de su colegio via el portal institucional. */
+        INSTITUCION
     }
 }

@@ -11,6 +11,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
+
 /**
  * Pedido de fabricación de uniformes para un colegio.
  *
@@ -104,11 +107,13 @@ public class Pedido extends AuditableEntity {
 
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL,
                orphanRemoval = true, fetch = FetchType.LAZY)
+    @Fetch(FetchMode.SUBSELECT)
     @Builder.Default
     private List<DetallePedido> detalles = new ArrayList<>();
 
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL,
                orphanRemoval = true, fetch = FetchType.LAZY)
+    @Fetch(FetchMode.SUBSELECT)
     @Builder.Default
     private List<PedidoHistorial> historial = new ArrayList<>();
 

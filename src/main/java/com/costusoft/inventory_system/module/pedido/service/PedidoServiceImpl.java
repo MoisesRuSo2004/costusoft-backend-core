@@ -146,7 +146,7 @@ public class PedidoServiceImpl implements PedidoService {
         @Override
         @Transactional(readOnly = true)
         public PedidoDTO.Response obtenerPorId(Long id) {
-                Pedido pedido = pedidoRepository.findByIdFull(id)
+                Pedido pedido = pedidoRepository.findByIdWithDetalles(id)
                                 .orElseThrow(() -> new ResourceNotFoundException("Pedido", id));
                 return toResponse(pedido, true);
         }
@@ -272,7 +272,7 @@ public class PedidoServiceImpl implements PedidoService {
                 log.info("Pedido calculado — id:{} | factor:{} | limitante:'{}'",
                                 id, calcResult.getFactorCumplimiento(), calcResult.getInsumoLimitante());
 
-                Pedido full = pedidoRepository.findByIdFull(saved.getId()).orElse(saved);
+                Pedido full = pedidoRepository.findByIdWithDetalles(saved.getId()).orElse(saved);
                 return toResponse(full, true);
         }
 
@@ -398,7 +398,7 @@ public class PedidoServiceImpl implements PedidoService {
          */
         @Override
         public PedidoDTO.Response entregar(Long id, String username) {
-                Pedido pedido = pedidoRepository.findByIdFull(id)
+                Pedido pedido = pedidoRepository.findByIdWithDetalles(id)
                                 .orElseThrow(() -> new ResourceNotFoundException("Pedido", id));
 
                 if (!pedido.esListoParaEntrega()) {
@@ -427,7 +427,7 @@ public class PedidoServiceImpl implements PedidoService {
          */
         @Override
         public PedidoDTO.Response cancelar(Long id, String motivo, String username) {
-                Pedido pedido = pedidoRepository.findByIdFull(id)
+                Pedido pedido = pedidoRepository.findByIdWithDetalles(id)
                                 .orElseThrow(() -> new ResourceNotFoundException("Pedido", id));
 
                 if (pedido.esFinal()) {

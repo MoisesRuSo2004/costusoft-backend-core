@@ -47,6 +47,7 @@ public class Insumo extends AuditableEntity {
     @Column(name = "tipo", length = 50)
     private String tipo;
 
+    @Builder.Default
     @Min(value = 0, message = "El stock mínimo no puede ser negativo")
     @Column(name = "stock_minimo", nullable = false)
     private Integer stockMinimo = 10;

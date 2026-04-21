@@ -14,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -107,6 +108,17 @@ public class UsuarioController {
         return ResponseEntity.ok(
                 ApiResponse.ok("Estado del usuario actualizado",
                         usuarioService.toggleActivo(id)));
+    }
+
+    // ── TODOS: Mi perfil ────────────────────────────────────────────────
+
+    @Operation(summary = "Mi perfil", description = "Retorna los datos del usuario autenticado. "
+            + "Disponible para todos los roles (ADMIN, USER, BODEGA, INSTITUCION).")
+    @GetMapping("/mi-perfil")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UsuarioDTO.Response>> miPerfil(Authentication auth) {
+        return ResponseEntity.ok(
+                ApiResponse.ok("Mi perfil", usuarioService.obtenerPorUsername(auth.getName())));
     }
 
     // ── ADMIN + USER: cambio de password propio ──────────────────────────

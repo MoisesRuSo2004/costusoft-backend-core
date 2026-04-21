@@ -4,6 +4,7 @@ import com.costusoft.inventory_system.exception.BusinessException;
 import com.costusoft.inventory_system.module.prediccion.dto.PrediccionDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -27,6 +28,7 @@ public class PrediccionClient {
             @Value("${prediccion.service.token:mi-token-secreto-interno-cambiar-en-produccion}") String token) {
 
         this.restClient = RestClient.builder()
+                .requestFactory(new SimpleClientHttpRequestFactory())
                 .baseUrl(serviceUrl)
                 .defaultHeader("X-API-Token", token)
                 .defaultHeader("Content-Type", "application/json")

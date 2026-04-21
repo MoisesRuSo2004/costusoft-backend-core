@@ -7,6 +7,9 @@ import lombok.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
+
 import com.costusoft.inventory_system.shared.domain.AuditableEntity;
 
 /**
@@ -63,6 +66,7 @@ public class Uniforme extends AuditableEntity {
      * La tabla de unión es uniforme_insumos.
      */
     @OneToMany(mappedBy = "uniforme", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Fetch(FetchMode.SUBSELECT)
     @Builder.Default
     private List<UniformeInsumo> insumosRequeridos = new ArrayList<>();
 

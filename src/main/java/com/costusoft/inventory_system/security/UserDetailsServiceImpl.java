@@ -35,6 +35,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                     return new UsernameNotFoundException("Credenciales inválidas");
                 });
 
+        // Verificar activacion ANTES que activo — mensaje mas especifico para el usuario
+        if (!usuario.isCuentaActivada()) {
+            log.warn("Intento de login con cuenta no activada: {}", username);
+            throw new DisabledException(
+                    "Tu cuenta aún no ha sido activada. Revisa tu correo electrónico y sigue el enlace de activación.");
+        }
+
         if (!usuario.isActivo()) {
             log.warn("Intento de login con usuario inactivo: {}", username);
             throw new DisabledException("La cuenta está desactivada. Contacte al administrador.");

@@ -7,11 +7,11 @@ import lombok.*;
 /**
  * DTOs del modulo Usuario.
  *
- * CreateRequest — creacion: incluye password en texto plano (se hashea en
- * service).
- * UpdateRequest — actualizacion: password opcional (si no viene, se mantiene el
- * actual).
- * Response — salida: NUNCA expone el password.
+ * CreateRequest — creacion: NO incluye password. Al crear un usuario se genera
+ *                 un token de activacion y se envia un email para que el
+ *                 propio usuario establezca su contrasena.
+ * UpdateRequest — actualizacion: password opcional (si no viene, se mantiene el actual).
+ * Response      — salida: NUNCA expone el password.
  */
 public class UsuarioDTO {
 
@@ -29,9 +29,9 @@ public class UsuarioDTO {
         @Pattern(regexp = "^[a-zA-Z0-9._-]+$", message = "El username solo puede contener letras, numeros, puntos, guiones y guion bajo")
         private String username;
 
-        @NotBlank(message = "La contrasena es obligatoria")
-        @Size(min = 6, max = 100, message = "La contrasena debe tener entre 6 y 100 caracteres")
-        private String password;
+        // password NO se incluye en la creacion.
+        // El admin no asigna la contrasena — el sistema envia un email de activacion
+        // para que el propio usuario la defina de forma segura.
 
         @NotBlank(message = "El correo es obligatorio")
         @Email(message = "Formato de correo invalido")
@@ -41,7 +41,15 @@ public class UsuarioDTO {
         @NotNull(message = "El rol es obligatorio")
         private Usuario.Rol rol;
 
+        @Builder.Default
         private boolean activo = true;
+
+        /**
+         * Obligatorio cuando rol = INSTITUCION.
+         * El ID del colegio al que pertenece el coordinador.
+         * Ignorado para roles ADMIN, USER y BODEGA.
+         */
+        private Long colegioId;
     }
 
     // ── Update Request ───────────────────────────────────────────────────
@@ -103,6 +111,15 @@ public class UsuarioDTO {
         private final String correo;
         private final String rol;
         private final boolean activo;
+        /** true = el usuario ya activo su cuenta y puede iniciar sesion */
+        private final boolean cuentaActivada;
+        /**
+         * ID del colegio asociado. Solo presente cuando rol = INSTITUCION.
+         * null para los demas roles.
+         */
+        private final Long colegioId;
+        /** Nombre del colegio asociado (solo para rol INSTITUCION). */
+        private final String nombreColegio;
         private final String createdAt;
         private final String updatedAt;
         // password NUNCA se incluye en el response

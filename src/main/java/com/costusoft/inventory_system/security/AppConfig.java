@@ -9,16 +9,19 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.client.RestTemplate;
 
 /**
  * Configuración general de la aplicación:
  * - JPA Auditing (createdAt / updatedAt automáticos)
+ * - @EnableAsync — habilita el pool de hilos para @Async (envio de emails)
  * - RestTemplate para llamadas HTTP externas
  * - OpenAPI / Swagger UI con soporte para JWT en el header
  */
 @Configuration
 @EnableJpaAuditing
+@EnableAsync
 public class AppConfig {
 
     @Bean

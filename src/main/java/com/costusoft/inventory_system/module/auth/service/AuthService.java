@@ -27,7 +27,11 @@ public interface AuthService {
      *                                                                             esta
      *                                                                             inactivo
      */
-    AuthResponseDTO login(LoginRequestDTO request);
+    /**
+     * @param ipAddress  IP del cliente (extraida del HttpServletRequest en el controller)
+     * @param userAgent  User-Agent del cliente (para deteccion de nuevo dispositivo)
+     */
+    AuthResponseDTO login(LoginRequestDTO request, String ipAddress, String userAgent);
 
     /**
      * Emite un nuevo access token a partir de un refresh token valido.

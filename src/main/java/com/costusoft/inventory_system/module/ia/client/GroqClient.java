@@ -4,6 +4,7 @@ import com.costusoft.inventory_system.exception.BusinessException;
 import com.costusoft.inventory_system.module.ia.dto.IaDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -31,6 +32,7 @@ public class GroqClient {
 
         this.model = model;
         this.restClient = RestClient.builder()
+                .requestFactory(new SimpleClientHttpRequestFactory())
                 .baseUrl(apiUrl)
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("Content-Type", "application/json")

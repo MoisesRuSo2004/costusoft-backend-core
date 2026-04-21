@@ -12,7 +12,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.4</version>
+        <version>3.4.5</version>
         <relativePath/>
     </parent>
 
@@ -34,11 +34,12 @@
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <lombok.version>1.18.34</lombok.version>
         <jjwt.version>0.12.6</jjwt.version>
-        <openapi.version>2.6.0</openapi.version>
+        <openapi.version>2.7.0</openapi.version>
         <weka.version>3.8.6</weka.version>
         <opencsv.version>5.9</opencsv.version>
         <openPdf.version>1.3.30</openPdf.version>
         <poi.version>5.4.0</poi.version>
+        <resend.version>3.1.0</resend.version>
     </properties>
 
     <!-- ================================================================
@@ -156,6 +157,13 @@
             <version>${opencsv.version}</version>
         </dependency>
 
+        <!-- ── Resend (Email transaccional) ──────────────────────── -->
+        <dependency>
+            <groupId>com.resend</groupId>
+            <artifactId>resend-java</artifactId>
+            <version>${resend.version}</version>
+        </dependency>
+
         <!-- ── Actuator (health, metrics) ────────────────────────── -->
 
         <!-- ── DevTools (solo desarrollo) ────────────────────────── -->
@@ -191,6 +199,10 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <!-- fork=true para que jvmArguments apliquen al proceso Spring Boot -->
+                    <fork>true</fork>
+                    <!-- Workaround JDK 17 en Windows: WEPollSelectorProvider falla con Unix sockets -->
+                    <jvmArguments>-Djdk.net.unixdomain.tmpdir=C:/Temp</jvmArguments>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>

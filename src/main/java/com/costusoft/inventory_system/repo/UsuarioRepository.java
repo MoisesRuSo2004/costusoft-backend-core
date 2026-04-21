@@ -15,6 +15,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     Optional<Usuario> findByUsername(String username);
 
+    /** Usado en forgot-password para buscar el usuario por su correo */
+    Optional<Usuario> findByCorreo(String correo);
+
     boolean existsByUsername(String username);
 
     boolean existsByCorreo(String correo);

@@ -7,6 +7,7 @@ import com.costusoft.inventory_system.exception.ResourceNotFoundException;
 import com.costusoft.inventory_system.module.auth.dto.AuthResponseDTO;
 import com.costusoft.inventory_system.module.auth.dto.LoginRequestDTO;
 import com.costusoft.inventory_system.module.auth.dto.RefreshTokenRequestDTO;
+import com.costusoft.inventory_system.module.seguridad.service.SeguridadService;
 import com.costusoft.inventory_system.security.JwtTokenProvider;
 import com.costusoft.inventory_system.security.UserDetailsImpl;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final UsuarioRepository usuarioRepository;
+    private final SeguridadService seguridadService;
 
     @Value("${app.jwt.expiration-ms}")
     private long jwtExpirationMs;
@@ -47,8 +49,8 @@ public class AuthServiceImpl implements AuthService {
     // ── Login ────────────────────────────────────────────────────────────
 
     @Override
-    @Transactional(readOnly = true)
-    public AuthResponseDTO login(LoginRequestDTO request) {
+    @Transactional
+    public AuthResponseDTO login(LoginRequestDTO request, String ipAddress, String userAgent) {
         // 1. Autenticar — lanza BadCredentialsException o DisabledException si falla
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -60,12 +62,18 @@ public class AuthServiceImpl implements AuthService {
 
         // 3. Generar tokens
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        String accessToken = jwtTokenProvider.generateAccessToken(authentication);
+        String accessToken  = jwtTokenProvider.generateAccessToken(authentication);
         String refreshToken = jwtTokenProvider.generateRefreshToken(userDetails.getUsername());
 
-        log.info("Login exitoso para usuario: {}", userDetails.getUsername());
+        log.info("Login exitoso para usuario: '{}' — ip: {}", userDetails.getUsername(), ipAddress);
 
-        // 4. Construir y retornar respuesta
+        // 4. Registrar audit de login y detectar nuevo dispositivo (async email si aplica)
+        Usuario usuario = usuarioRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario", "username", userDetails.getUsername()));
+        seguridadService.procesarLoginAudit(usuario, ipAddress, userAgent, true);
+
+        // 5. Construir y retornar respuesta
         return buildAuthResponse(accessToken, refreshToken, userDetails);
     }
 

@@ -1,5 +1,6 @@
 package com.costusoft.inventory_system.shared.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import org.springframework.data.domain.Page;
 
@@ -21,8 +22,23 @@ import java.util.function.Function;
 public class PageDTO<T> {
 
     private final List<T> content;
+
+    /**
+     * Número de página actual (0-based).
+     * Se serializa como "number" para alinear con Spring Data Page
+     * y con el tipo PageData<T> del frontend.
+     */
+    @JsonProperty("number")
     private final int pageNumber;
+
+    /**
+     * Elementos por página.
+     * Se serializa como "size" para alinear con Spring Data Page
+     * y con el tipo PageData<T> del frontend.
+     */
+    @JsonProperty("size")
     private final int pageSize;
+
     private final long totalElements;
     private final int totalPages;
     private final boolean first;

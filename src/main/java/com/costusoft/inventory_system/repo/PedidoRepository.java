@@ -52,6 +52,15 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     long countByColegioId(Long colegioId);
 
+    /**
+     * Cuenta pedidos de un colegio que NO estén en los estados indicados.
+     * Usado en el dashboard institucional para calcular "pedidos activos"
+     * sin cargar todas las entidades (evita N+1).
+     *
+     * Ejemplo: countByColegioIdAndEstadoNotIn(id, List.of(ENTREGADO, CANCELADO))
+     */
+    long countByColegioIdAndEstadoNotIn(Long colegioId, java.util.List<EstadoPedido> estados);
+
     // ── Carga con detalles (evita N+1 en operaciones individuales) ───────
 
     /**
@@ -68,30 +77,28 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     Optional<Pedido> findByIdWithDetalles(@Param("id") Long id);
 
     /**
-     * Carga el pedido + detalles + uniforme + insumosRequeridos + insumo de cada insumo.
-     * Usar para: iniciarProduccion() — necesita el árbol completo para agregar insumos.
+     * Carga el pedido + detalles + uniforme + colegio.
+     * insumosRequeridos se carga via SUBSELECT por @Fetch(FetchMode.SUBSELECT) en Uniforme.
+     * Usar para: iniciarProduccion() — dentro de @Transactional, la sesión está activa.
      */
     @Query("""
            SELECT DISTINCT p FROM Pedido p
            LEFT JOIN FETCH p.detalles d
            LEFT JOIN FETCH d.uniforme u
-           LEFT JOIN FETCH u.insumosRequeridos ir
-           LEFT JOIN FETCH ir.insumo
            LEFT JOIN FETCH p.colegio
            WHERE p.id = :id
            """)
     Optional<Pedido> findByIdWithDetallesAndInsumos(@Param("id") Long id);
 
     /**
-     * Carga el pedido + detalles + uniforme + insumosRequeridos + insumo + salida.
+     * Carga el pedido + detalles + uniforme + colegio + salida.
+     * insumosRequeridos se carga via SUBSELECT por @Fetch(FetchMode.SUBSELECT) en Uniforme.
      * Usar para: entregar() y respuesta completa incluyendo salida.
      */
     @Query("""
            SELECT DISTINCT p FROM Pedido p
            LEFT JOIN FETCH p.detalles d
            LEFT JOIN FETCH d.uniforme u
-           LEFT JOIN FETCH u.insumosRequeridos ir
-           LEFT JOIN FETCH ir.insumo
            LEFT JOIN FETCH p.colegio
            LEFT JOIN FETCH p.salida
            WHERE p.id = :id

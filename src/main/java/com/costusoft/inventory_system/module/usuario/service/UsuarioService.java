@@ -15,6 +15,9 @@ public interface UsuarioService {
     /** Obtiene un usuario por ID — solo ADMIN */
     UsuarioDTO.Response obtenerPorId(Long id);
 
+    /** Obtiene un usuario por username — disponible para todos los usuarios autenticados */
+    UsuarioDTO.Response obtenerPorUsername(String username);
+
     /** Actualiza un usuario existente — solo ADMIN */
     UsuarioDTO.Response actualizar(Long id, UsuarioDTO.UpdateRequest request);
 

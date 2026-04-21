@@ -40,6 +40,12 @@ public class SecurityConfig {
     // ── Rutas públicas ───────────────────────────────────────────────────
     private static final String[] PUBLIC_URLS = {
             "/api/auth/**",
+            // Modulo de seguridad de cuentas (activacion, forgot/reset password)
+            "/api/seguridad/set-password",
+            "/api/seguridad/forgot-password",
+            "/api/seguridad/reset-password",
+            // Endpoints de debug — solo existen en perfil dev (DevSeguridadController)
+            "/api/dev/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/v3/api-docs/**",
@@ -88,12 +94,21 @@ public class SecurityConfig {
                         .requestMatchers("/api/calculadora/**").hasAnyRole("ADMIN", "USER", "BODEGA")
                         .requestMatchers("/api/prediccion/**").hasAnyRole("ADMIN", "USER", "BODEGA")
 
-                        // IA (Groq) — análisis de solo lectura para todos los roles
+                        // IA (Groq) — análisis de solo lectura para todos los roles internos
                         .requestMatchers("/api/ia/**").hasAnyRole("ADMIN", "USER", "BODEGA")
 
                         // Pedidos: todos los roles pueden ver; USER/ADMIN crean/editan;
                         // BODEGA gestiona la producción y entrega (control granular en @PreAuthorize)
                         .requestMatchers("/api/pedidos/**").hasAnyRole("ADMIN", "USER", "BODEGA")
+
+                        // Portal institucional — exclusivo para coordinadores de colegio
+                        // El control granular adicional se aplica en InstitucionServiceImpl
+                        // (aislamiento por colegio garantizado en el service layer)
+                        .requestMatchers("/api/institucion/**").hasRole("INSTITUCION")
+
+                        // Panel admin de solicitudes institucionales
+                        // Solo ADMIN puede ver y gestionar las solicitudes de los colegios
+                        .requestMatchers("/api/solicitudes-especiales/**").hasRole("ADMIN")
 
                         // Cualquier otra ruta requiere autenticación
                         .anyRequest().authenticated())

@@ -46,6 +46,12 @@ public interface IaService {
     IaDTO.ChatResponse chat(IaDTO.ChatRequest request);
 
     /**
+     * Chat que permite pasar un contexto estructurado (JSON) específico — ej. para un colegio.
+     * El backend NO reinyecta el snapshot completo: usa el contexto proporcionado.
+     */
+    IaDTO.ChatResponse chatWithContext(String contextoJson, IaDTO.ChatRequest request);
+
+    /**
      * Genera el texto de una orden de compra lista para enviar.
      * Si se especifica proveedorId, la carta se dirige a ese proveedor.
      * Si no, se genera un documento general de requisición.

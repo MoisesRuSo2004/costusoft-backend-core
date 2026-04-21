@@ -199,6 +199,49 @@ public class IaServiceImpl implements IaService {
                                 .build();
         }
 
+        /**
+         * Chat usando un contexto estructurado proporcionado por el llamador.
+         * Útil para consultas focalizadas (ej. solo sobre un colegio).
+         */
+        @Override
+        public IaDTO.ChatResponse chatWithContext(String contextoJson, IaDTO.ChatRequest request) {
+                long inicio = System.currentTimeMillis();
+
+                log.info("Chat IA con contexto personalizado — pregunta: '{}'", request.getPregunta());
+
+                String userMessage = String.format(
+                                "DATOS ACTUALES DEL INVENTARIO COSTUSOFT:\n%s\n\nPREGUNTA:\n%s",
+                                contextoJson != null ? contextoJson : "{}",
+                                request.getPregunta());
+
+                IaDTO.GroqChatRequest groqRequest = IaDTO.GroqChatRequest.builder()
+                                .model(groqClient.getModel())
+                                .messages(List.of(
+                                                IaDTO.GroqMessage.builder().role("system").content(CHAT_SYSTEM_PROMPT)
+                                                                .build(),
+                                                IaDTO.GroqMessage.builder().role("user").content(userMessage).build()))
+                                .maxTokens(600)
+                                .temperature(0.2)
+                                .build();
+
+                IaDTO.GroqChatResponse groqResponse = groqClient.consultar(groqRequest);
+
+                String respuesta = groqResponse.getChoices().get(0).getMessage().getContent();
+                Integer tokensUsados = groqResponse.getUsage() != null
+                                ? groqResponse.getUsage().getTotalTokens()
+                                : null;
+                long tiempoMs = System.currentTimeMillis() - inicio;
+
+                log.info("Chat IA (contexto) completado — tokens: {} | ms: {}", tokensUsados, tiempoMs);
+
+                return IaDTO.ChatResponse.builder()
+                                .respuesta(respuesta)
+                                .modelo(groqClient.getModel())
+                                .tokensUsados(tokensUsados)
+                                .tiempoMs(tiempoMs)
+                                .build();
+        }
+
         // ── Orden de compra ───────────────────────────────────────────────────
 
         @Override

@@ -1,9 +1,12 @@
 package com.costusoft.inventory_system.module.usuario.service;
 
+import com.costusoft.inventory_system.entity.Colegio;
 import com.costusoft.inventory_system.entity.Usuario;
+import com.costusoft.inventory_system.repo.ColegioRepository;
 import com.costusoft.inventory_system.repo.UsuarioRepository;
 import com.costusoft.inventory_system.exception.BusinessException;
 import com.costusoft.inventory_system.exception.ResourceNotFoundException;
+import com.costusoft.inventory_system.module.seguridad.service.SeguridadService;
 import com.costusoft.inventory_system.module.usuario.dto.UsuarioDTO;
 import com.costusoft.inventory_system.module.usuario.mapper.UsuarioMapper;
 import com.costusoft.inventory_system.security.UserDetailsImpl;
@@ -18,6 +21,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import java.util.UUID;
 
 /**
  * Implementacion del servicio de usuarios.
@@ -35,8 +40,10 @@ import org.springframework.util.StringUtils;
 public class UsuarioServiceImpl implements UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
+    private final ColegioRepository colegioRepository;
     private final UsuarioMapper usuarioMapper;
     private final PasswordEncoder passwordEncoder;
+    private final SeguridadService seguridadService;
 
     // ── Crear ────────────────────────────────────────────────────────────
 
@@ -45,12 +52,34 @@ public class UsuarioServiceImpl implements UsuarioService {
         validarUsernameUnico(request.getUsername(), null);
         validarCorreoUnico(request.getCorreo(), null);
 
+        // Validar regla de negocio: INSTITUCION requiere un colegio asociado
+        if (request.getRol() == Usuario.Rol.INSTITUCION) {
+            if (request.getColegioId() == null) {
+                throw new BusinessException(
+                        "Los usuarios con rol INSTITUCION deben tener un colegio asignado.");
+            }
+        }
+
         Usuario usuario = usuarioMapper.toEntity(request);
-        usuario.setPassword(passwordEncoder.encode(request.getPassword()));
+
+        // Resolver colegio si aplica
+        if (request.getRol() == Usuario.Rol.INSTITUCION && request.getColegioId() != null) {
+            Colegio colegio = colegioRepository.findById(request.getColegioId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Colegio", request.getColegioId()));
+            usuario.setColegio(colegio);
+        }
+
+        // Contrasena inutilizable — el usuario la definira via el link de activacion.
+        // Un hash BCrypt de un UUID aleatorio nunca puede ser adivinado ni revertido.
+        usuario.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+        usuario.setCuentaActivada(false);
 
         Usuario guardado = usuarioRepository.save(usuario);
-        log.info("Usuario creado — id: {} | username: '{}' | rol: {}",
+        log.info("Usuario creado — id: {} | username: '{}' | rol: {} | pendiente activacion",
                 guardado.getId(), guardado.getUsername(), guardado.getRol());
+
+        // Genera token de activacion + envia email de bienvenida (async)
+        seguridadService.generarYEnviarActivacion(guardado);
 
         return usuarioMapper.toResponse(guardado);
     }
@@ -69,6 +98,13 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Transactional(readOnly = true)
     public UsuarioDTO.Response obtenerPorId(Long id) {
         return usuarioMapper.toResponse(findOrThrow(id));
+    }
+
+    @Override
+    public UsuarioDTO.Response obtenerPorUsername(String username) {
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", "username", username));
+        return usuarioMapper.toResponse(usuario);
     }
 
     // ── Actualizar ───────────────────────────────────────────────────────
@@ -143,6 +179,9 @@ public class UsuarioServiceImpl implements UsuarioService {
         usuarioRepository.save(usuario);
 
         log.info("Password cambiado exitosamente para usuario: '{}'", usuario.getUsername());
+
+        // Notificar al usuario por email que su contrasena fue cambiada (async)
+        seguridadService.notificarCambioPassword(usuario);
     }
 
     // ── Toggle activo ────────────────────────────────────────────────────

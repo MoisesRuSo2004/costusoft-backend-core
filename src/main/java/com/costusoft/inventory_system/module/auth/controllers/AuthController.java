@@ -7,6 +7,7 @@ import com.costusoft.inventory_system.module.auth.service.AuthService;
 import com.costusoft.inventory_system.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -35,9 +36,13 @@ public class AuthController {
     @Operation(summary = "Iniciar sesion", description = "Autentica con username y password. Retorna access token (1h) y refresh token (7 dias).")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponseDTO>> login(
-            @Valid @RequestBody LoginRequestDTO request) {
+            @Valid @RequestBody LoginRequestDTO request,
+            HttpServletRequest httpRequest) {
 
-        AuthResponseDTO response = authService.login(request);
+        String ipAddress = resolverIpCliente(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+
+        AuthResponseDTO response = authService.login(request, ipAddress, userAgent);
         return ResponseEntity.ok(
                 ApiResponse.ok("Login exitoso", response));
     }
@@ -64,4 +69,22 @@ public class AuthController {
                 ApiResponse.ok("Usuario autenticado", usuario));
     }
 
+    // ── Helper: resolver IP real del cliente ─────────────────────────────
+
+    /**
+     * Extrae la IP real del cliente respetando proxies/load-balancers.
+     * Orden de prioridad: X-Forwarded-For > X-Real-IP > remoteAddr
+     */
+    private String resolverIpCliente(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+            // X-Forwarded-For puede tener multiples IPs: "clientIP, proxy1, proxy2"
+            return xForwardedFor.split(",")[0].trim();
+        }
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isBlank()) {
+            return xRealIp.trim();
+        }
+        return request.getRemoteAddr();
+    }
 }
