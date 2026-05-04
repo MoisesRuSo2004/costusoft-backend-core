@@ -54,6 +54,7 @@ public class InsumoDTO {
         private final String unidadMedida;
         private final String tipo;
         private final Integer stockMinimo;
+        private final Boolean activo;
         private final String riesgo;
         private final boolean stockBajo;
         private final String createdAt;

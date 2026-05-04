@@ -23,6 +23,7 @@ public interface InsumoMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "riesgo", ignore = true)
+    @Mapping(target = "activo", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "stockMinimo", source = "stockMinimo", defaultExpression = "java(10)")
@@ -40,6 +41,7 @@ public interface InsumoMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "riesgo", ignore = true)
+    @Mapping(target = "activo", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntityFromRequest(InsumoDTO.Request request, @MappingTarget Insumo insumo);

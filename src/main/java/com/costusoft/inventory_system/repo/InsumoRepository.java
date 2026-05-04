@@ -3,6 +3,7 @@ package com.costusoft.inventory_system.repo;
 import com.costusoft.inventory_system.entity.Insumo;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -17,10 +18,11 @@ public interface InsumoRepository extends JpaRepository<Insumo, Long> {
 
     boolean existsByNombreIgnoreCaseAndIdNot(String nombre, Long id);
 
-    List<Insumo> findByNombreContainingIgnoreCase(String nombre);
+    /** Búsqueda por nombre — solo insumos activos (para autocomplete en entradas/salidas) */
+    List<Insumo> findByNombreContainingIgnoreCaseAndActivoTrue(String nombre);
 
-    /** Insumos cuyo stock es <= su stockMinimo */
-    @Query("SELECT i FROM Insumo i WHERE i.stock <= i.stockMinimo")
+    /** Insumos activos cuyo stock es <= su stockMinimo */
+    @Query("SELECT i FROM Insumo i WHERE i.stock <= i.stockMinimo AND i.activo = true")
     List<Insumo> findInsumosConStockBajo();
 
     /** Insumos con stock en cero */
@@ -28,4 +30,12 @@ public interface InsumoRepository extends JpaRepository<Insumo, Long> {
 
     /** Insumos por tipo */
     List<Insumo> findByTipoIgnoreCase(String tipo);
+
+    /** ¿El insumo tiene detalles en alguna entrada? */
+    @Query("SELECT COUNT(de) > 0 FROM DetalleEntrada de WHERE de.insumo.id = :insumoId")
+    boolean tieneDetallesEntrada(@Param("insumoId") Long insumoId);
+
+    /** ¿El insumo tiene detalles en alguna salida? */
+    @Query("SELECT COUNT(ds) > 0 FROM DetalleSalida ds WHERE ds.insumo.id = :insumoId")
+    boolean tieneDetallesSalida(@Param("insumoId") Long insumoId);
 }

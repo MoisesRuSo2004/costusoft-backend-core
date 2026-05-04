@@ -3,6 +3,7 @@ package com.costusoft.inventory_system.module.insumo.service;
 import com.costusoft.inventory_system.entity.Insumo;
 import com.costusoft.inventory_system.repo.InsumoRepository;
 import com.costusoft.inventory_system.exception.BusinessException;
+import com.costusoft.inventory_system.exception.InsumoConMovimientosException;
 import com.costusoft.inventory_system.exception.ResourceNotFoundException;
 import com.costusoft.inventory_system.module.insumo.dto.InsumoDTO;
 import com.costusoft.inventory_system.module.insumo.mapper.InsumoMapper;
@@ -93,17 +94,32 @@ public class InsumoServiceImpl implements InsumoService {
     @Override
     public void eliminar(Long id) {
         Insumo insumo = findOrThrow(id);
+        if (insumoRepository.tieneDetallesEntrada(id) || insumoRepository.tieneDetallesSalida(id)) {
+            throw new InsumoConMovimientosException(insumo.getNombre());
+        }
         insumoRepository.delete(insumo);
         log.info("Insumo eliminado — id: {} | nombre: '{}'", id, insumo.getNombre());
     }
 
-    // ── Buscar por nombre ────────────────────────────────────────────────
+    // ── Inhabilitar / Reactivar ──────────────────────────────────────────
+
+    @Override
+    public InsumoDTO.Response inhabilitar(Long id) {
+        Insumo insumo = findOrThrow(id);
+        insumo.setActivo(!Boolean.TRUE.equals(insumo.getActivo()));
+        Insumo actualizado = insumoRepository.save(insumo);
+        String accion = Boolean.TRUE.equals(actualizado.getActivo()) ? "reactivado" : "inhabilitado";
+        log.info("Insumo {} — id: {} | nombre: '{}'", accion, id, insumo.getNombre());
+        return insumoMapper.toResponse(actualizado);
+    }
+
+    // ── Buscar por nombre (solo activos) ────────────────────────────────
 
     @Override
     @Transactional(readOnly = true)
     public List<InsumoDTO.Response> buscarPorNombre(String nombre) {
         return insumoRepository
-                .findByNombreContainingIgnoreCase(nombre.trim())
+                .findByNombreContainingIgnoreCaseAndActivoTrue(nombre.trim())
                 .stream()
                 .map(insumoMapper::toResponse)
                 .toList();

@@ -148,12 +148,30 @@ public class InsumoController {
 
     // ── DELETE /api/insumos/{id} ─────────────────────────────────────────
 
-    @Operation(summary = "Eliminar insumo", description = "Solo disponible para ADMIN. Elimina permanentemente el insumo.")
+    @Operation(
+        summary = "Eliminar insumo",
+        description = "Elimina permanentemente si no tiene movimientos. Si tiene entradas/salidas retorna 409 con errorCode=INSUMO_CON_MOVIMIENTOS — usar PATCH /inhabilitar en su lugar."
+    )
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         insumoService.eliminar(id);
-        return ResponseEntity.ok(
-                ApiResponse.ok("Insumo eliminado exitosamente"));
+        return ResponseEntity.ok(ApiResponse.ok("Insumo eliminado exitosamente"));
+    }
+
+    // ── PATCH /api/insumos/{id}/inhabilitar ──────────────────────────────
+
+    @Operation(
+        summary = "Inhabilitar o reactivar insumo",
+        description = "Alterna el campo activo. Un insumo inactivo no aparece en autocompletados ni en alertas de stock."
+    )
+    @PatchMapping("/{id}/inhabilitar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<InsumoDTO.Response>> inhabilitar(@PathVariable Long id) {
+        InsumoDTO.Response resultado = insumoService.inhabilitar(id);
+        String msg = Boolean.TRUE.equals(resultado.getActivo())
+                ? "Insumo reactivado exitosamente"
+                : "Insumo inhabilitado exitosamente";
+        return ResponseEntity.ok(ApiResponse.ok(msg, resultado));
     }
 }

@@ -52,6 +52,10 @@ public class Insumo extends AuditableEntity {
     @Column(name = "stock_minimo", nullable = false)
     private Integer stockMinimo = 10;
 
+    @Builder.Default
+    @Column(name = "activo", nullable = false)
+    private Boolean activo = true;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "riesgo", length = 20)
     private NivelRiesgo riesgo;

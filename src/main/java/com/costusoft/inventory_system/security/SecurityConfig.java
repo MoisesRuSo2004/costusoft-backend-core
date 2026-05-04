@@ -77,8 +77,9 @@ public class SecurityConfig {
                         // Solo ADMIN puede gestionar usuarios
                         .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
 
-                        // Solo ADMIN puede gestionar proveedores
-                        .requestMatchers("/api/proveedores/**").hasRole("ADMIN")
+                        // Proveedores: cualquier rol autenticado puede leer (necesario para crear entradas)
+                        // La restricción de escritura (POST/PUT/DELETE) se aplica con @PreAuthorize en el controller
+                        .requestMatchers("/api/proveedores/**").authenticated()
 
                         // Inventario: BODEGA puede ver pero no crear/editar
                         // (los endpoints individuales con @PreAuthorize granular aplican la restricción exacta)

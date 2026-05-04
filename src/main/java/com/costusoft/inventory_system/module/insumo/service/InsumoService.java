@@ -28,13 +28,20 @@ public interface InsumoService {
      */
     InsumoDTO.Response actualizar(Long id, InsumoDTO.Request request);
 
-    /** Eliminar un insumo — lanza ResourceNotFoundException si no existe */
+    /**
+     * Eliminar un insumo.
+     * Lanza InsumoConMovimientosException si tiene entradas/salidas registradas.
+     * En ese caso el cliente debe usar inhabilitar() en su lugar.
+     */
     void eliminar(Long id);
 
-    /** Buscar insumos por nombre (para autocompletado) */
+    /** Inhabilitar (o reactivar) un insumo — toggle del campo activo */
+    InsumoDTO.Response inhabilitar(Long id);
+
+    /** Buscar insumos por nombre (para autocompletado) — solo activos */
     List<InsumoDTO.Response> buscarPorNombre(String nombre);
 
-    /** Listar insumos con stock igual o menor a su stockMinimo */
+    /** Listar insumos activos con stock igual o menor a su stockMinimo */
     List<InsumoDTO.Response> obtenerConStockBajo();
 
     /** Ajuste manual de stock (sin entrada/salida formal) */

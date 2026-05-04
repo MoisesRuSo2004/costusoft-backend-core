@@ -20,8 +20,8 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Controller REST del modulo Proveedor.
  *
- * Todos los endpoints requieren rol ADMIN.
- * Los proveedores son datos administrativos sensibles.
+ * Lectura (GET): cualquier rol autenticado — necesario para seleccionar proveedor en entradas.
+ * Escritura (POST/PUT/DELETE): solo ADMIN.
  *
  * Endpoints:
  * GET /api/proveedores — listar paginado
@@ -34,7 +34,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/proveedores")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Proveedores", description = "Gestion de proveedores de insumos")
 public class ProveedorController {
 
@@ -42,6 +41,7 @@ public class ProveedorController {
 
     @Operation(summary = "Listar proveedores paginados")
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<PageDTO<ProveedorDTO.Response>>> listar(
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "10") @Min(1) int size,
@@ -60,6 +60,7 @@ public class ProveedorController {
 
     @Operation(summary = "Obtener proveedor por ID")
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<ProveedorDTO.Response>> obtenerPorId(@PathVariable Long id) {
         return ResponseEntity.ok(
                 ApiResponse.ok("Proveedor encontrado", proveedorService.obtenerPorId(id)));
@@ -67,6 +68,7 @@ public class ProveedorController {
 
     @Operation(summary = "Crear nuevo proveedor")
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ProveedorDTO.Response>> crear(
             @Valid @RequestBody ProveedorDTO.Request request) {
 
@@ -77,6 +79,7 @@ public class ProveedorController {
 
     @Operation(summary = "Actualizar proveedor existente")
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ProveedorDTO.Response>> actualizar(
             @PathVariable Long id,
             @Valid @RequestBody ProveedorDTO.Request request) {
@@ -87,6 +90,7 @@ public class ProveedorController {
 
     @Operation(summary = "Eliminar proveedor")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         proveedorService.eliminar(id);
         return ResponseEntity.ok(ApiResponse.ok("Proveedor eliminado exitosamente"));

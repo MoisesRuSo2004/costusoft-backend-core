@@ -15,6 +15,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 /**
  * Manejador global de excepciones para toda la API.
@@ -63,6 +64,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InsumoConMovimientosException.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleInsumoConMovimientos(
+            InsumoConMovimientosException ex) {
+        log.warn("Intento de eliminar insumo con movimientos: {}", ex.getMessage());
+        Map<String, String> detail = new LinkedHashMap<>();
+        detail.put("errorCode", "INSUMO_CON_MOVIMIENTOS");
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage(), detail));
     }
 
     @ExceptionHandler(StockInsuficienteException.class)

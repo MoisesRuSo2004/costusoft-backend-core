@@ -20,9 +20,9 @@ import java.util.Map;
  * Controller REST del módulo IA.
  *
  * Endpoints:
- *   POST /api/ia/consultar  — ejecuta una consulta de análisis (Nivel 1)
- *   GET  /api/ia/tipos      — lista los tipos de consulta disponibles
- *   GET  /api/ia/estado     — verifica disponibilidad del servicio Groq
+ * POST /api/ia/consultar — ejecuta una consulta de análisis (Nivel 1)
+ * GET /api/ia/tipos — lista los tipos de consulta disponibles
+ * GET /api/ia/estado — verifica disponibilidad del servicio Groq
  *
  * Todos los roles autenticados pueden usar el asistente IA.
  * Solo lectura — nunca modifica datos del inventario.
@@ -38,11 +38,8 @@ public class IaController {
 
     // ── Consulta principal ────────────────────────────────────────────────
 
-    @Operation(
-        summary     = "Ejecutar consulta de análisis con IA",
-        description = "Obtiene datos del inventario, los analiza con Groq (LLaMA 3.3) "
-                    + "y retorna una respuesta en español. Solo lectura — no modifica datos."
-    )
+    @Operation(summary = "Ejecutar consulta de análisis con IA", description = "Obtiene datos del inventario, los analiza con Groq (LLaMA 3.3) "
+            + "y retorna una respuesta en español. Solo lectura — no modifica datos.")
     @PostMapping("/consultar")
     public ResponseEntity<ApiResponse<IaDTO.ConsultaResponse>> consultar(
             @Valid @RequestBody IaDTO.ConsultaRequest request) {
@@ -53,10 +50,7 @@ public class IaController {
 
     // ── Tipos disponibles ─────────────────────────────────────────────────
 
-    @Operation(
-        summary     = "Listar tipos de consulta disponibles",
-        description = "Retorna todos los TipoConsulta válidos para usar en POST /consultar."
-    )
+    @Operation(summary = "Listar tipos de consulta disponibles", description = "Retorna todos los TipoConsulta válidos para usar en POST /consultar.")
     @GetMapping("/tipos")
     public ResponseEntity<ApiResponse<List<String>>> getTipos() {
         return ResponseEntity.ok(ApiResponse.ok("Tipos disponibles", iaService.getTiposDisponibles()));
@@ -64,12 +58,9 @@ public class IaController {
 
     // ── Chat libre ────────────────────────────────────────────────────────
 
-    @Operation(
-        summary     = "Chat libre sobre el inventario",
-        description = "El usuario escribe en lenguaje natural. El backend inyecta un snapshot "
-                    + "completo del inventario como contexto y Groq responde cualquier pregunta "
-                    + "sobre el estado actual del sistema."
-    )
+    @Operation(summary = "Chat libre sobre el inventario", description = "El usuario escribe en lenguaje natural. El backend inyecta un snapshot "
+            + "completo del inventario como contexto y Groq responde cualquier pregunta "
+            + "sobre el estado actual del sistema.")
     @PostMapping("/chat")
     public ResponseEntity<ApiResponse<IaDTO.ChatResponse>> chat(
             @Valid @RequestBody IaDTO.ChatRequest request) {
@@ -80,12 +71,9 @@ public class IaController {
 
     // ── Orden de compra ───────────────────────────────────────────────────
 
-    @Operation(
-        summary     = "Generar orden de compra",
-        description = "Genera el texto formal de una orden de compra basada en los insumos con "
-                    + "stock bajo y predicciones ML. Si se especifica proveedorId, la carta se "
-                    + "dirige a ese proveedor. Si no, genera una requisición interna general."
-    )
+    @Operation(summary = "Generar orden de compra", description = "Genera el texto formal de una orden de compra basada en los insumos con "
+            + "stock bajo y predicciones ML. Si se especifica proveedorId, la carta se "
+            + "dirige a ese proveedor. Si no, genera una requisición interna general.")
     @PostMapping("/orden-compra")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<ApiResponse<IaDTO.OrdenCompraResponse>> generarOrdenCompra(
@@ -97,12 +85,9 @@ public class IaController {
 
     // ── Briefing diario ───────────────────────────────────────────────────
 
-    @Operation(
-        summary     = "Briefing ejecutivo del día",
-        description = "Genera un resumen matutino del estado del inventario: stock crítico, "
-                    + "pedidos activos, movimientos pendientes y prioridades del día. "
-                    + "Ideal para montar en el dashboard del frontend."
-    )
+    @Operation(summary = "Briefing ejecutivo del día", description = "Genera un resumen matutino del estado del inventario: stock crítico, "
+            + "pedidos activos, movimientos pendientes y prioridades del día. "
+            + "Ideal para montar en el dashboard del frontend.")
     @GetMapping("/briefing")
     public ResponseEntity<ApiResponse<IaDTO.ConsultaResponse>> getBriefing() {
         IaDTO.ConsultaResponse briefing = iaService.getBriefing();
@@ -111,18 +96,14 @@ public class IaController {
 
     // ── Estado del servicio ───────────────────────────────────────────────
 
-    @Operation(
-        summary     = "Verificar estado del servicio IA",
-        description = "Retorna si el cliente Groq está configurado y disponible."
-    )
+    @Operation(summary = "Verificar estado del servicio IA", description = "Retorna si el cliente Groq está configurado y disponible.")
     @GetMapping("/estado")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getEstado() {
         boolean up = iaService.isServiceUp();
         Map<String, Object> estado = Map.of(
                 "disponible", up,
-                "proveedor",  "Groq",
-                "status",     up ? "OK" : "NO_DISPONIBLE"
-        );
+                "proveedor", "Groq",
+                "status", up ? "OK" : "NO_DISPONIBLE");
         return ResponseEntity.ok(ApiResponse.ok("Estado del servicio IA", estado));
     }
 }

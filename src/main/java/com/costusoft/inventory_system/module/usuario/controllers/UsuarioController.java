@@ -123,9 +123,9 @@ public class UsuarioController {
 
     // ── ADMIN + USER: cambio de password propio ──────────────────────────
 
-    @Operation(summary = "Cambiar mi password", description = "Disponible para ADMIN y USER. Valida la contrasena actual antes de cambiar.")
+    @Operation(summary = "Cambiar mi password", description = "Disponible para todos los roles autenticados. Valida la contrasena actual antes de cambiar.")
     @PatchMapping("/mi-password")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> cambiarPassword(
             @Valid @RequestBody UsuarioDTO.ChangePasswordRequest request) {
 

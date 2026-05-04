@@ -33,7 +33,7 @@ public class EntradaDTO {
         @Size(max = 500, message = "La descripcion no puede superar 500 caracteres")
         private String descripcion;
 
-        // ID del proveedor — opcional
+        @NotNull(message = "El proveedor es obligatorio")
         private Long proveedorId;
 
         @NotNull(message = "Los detalles son obligatorios")
