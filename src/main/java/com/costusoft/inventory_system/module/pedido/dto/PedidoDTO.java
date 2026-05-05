@@ -86,6 +86,18 @@ public class PedidoDTO {
     }
 
     /**
+     * Actualización parcial: solo la fecha estimada de entrega.
+     * Permitida en cualquier estado activo (no ENTREGADO, no CANCELADO).
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FechaEntregaRequest {
+        private LocalDate fechaEstimadaEntrega;
+    }
+
+    /**
      * Una prenda dentro del pedido.
      *
      * Flujo UI:

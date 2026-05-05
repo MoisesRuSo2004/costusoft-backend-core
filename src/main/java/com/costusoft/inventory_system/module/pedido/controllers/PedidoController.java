@@ -130,12 +130,30 @@ public class PedidoController {
 
         // ── Eliminar ─────────────────────────────────────────────────────────
 
-        @Operation(summary = "Eliminar pedido", description = "Solo ADMIN. Solo pedidos en BORRADOR.")
+        @Operation(summary = "Eliminar pedido", description = "ADMIN o USER. Solo pedidos en BORRADOR.")
         @DeleteMapping("/{id}")
-        @PreAuthorize("hasRole('ADMIN')")
+        @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
         public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
                 pedidoService.eliminar(id);
                 return ResponseEntity.ok(ApiResponse.ok("Pedido eliminado"));
+        }
+
+        // ── Actualizar fecha de entrega ───────────────────────────────────────
+
+        @Operation(summary = "Actualizar fecha estimada de entrega",
+                        description = "Permite al ADMIN o USER fijar / cambiar la fecha estimada de entrega "
+                                        + "en cualquier estado activo del pedido (no ENTREGADO, no CANCELADO). "
+                                        + "Visible para la institución en su vista de pedidos.")
+        @PatchMapping("/{id}/fecha-entrega")
+        @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+        public ResponseEntity<ApiResponse<PedidoDTO.Response>> actualizarFechaEntrega(
+                        @PathVariable Long id,
+                        @RequestBody PedidoDTO.FechaEntregaRequest request,
+                        Authentication auth) {
+
+                return ResponseEntity.ok(ApiResponse.ok("Fecha de entrega actualizada",
+                                pedidoService.actualizarFechaEntrega(
+                                                id, request.getFechaEstimadaEntrega(), auth.getName())));
         }
 
         // ── Calcular ─────────────────────────────────────────────────────────
@@ -180,7 +198,7 @@ public class PedidoController {
                         + "BODEGA debe confirmar la Salida cuando retire los insumos físicamente. "
                         + "Transición: CONFIRMADO → EN_PRODUCCION.")
         @PostMapping("/{id}/iniciar-produccion")
-        @PreAuthorize("hasAnyRole('ADMIN', 'BODEGA')")
+        @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'BODEGA')")
         public ResponseEntity<ApiResponse<PedidoDTO.Response>> iniciarProduccion(
                         @PathVariable Long id,
                         Authentication auth) {
@@ -196,7 +214,7 @@ public class PedidoController {
         @Operation(summary = "Marcar pedido como listo para entrega", description = "Registra que la fabricación fue completada. "
                         + "Transición: EN_PRODUCCION → LISTO_PARA_ENTREGA.")
         @PostMapping("/{id}/marcar-listo")
-        @PreAuthorize("hasAnyRole('ADMIN', 'BODEGA')")
+        @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'BODEGA')")
         public ResponseEntity<ApiResponse<PedidoDTO.Response>> marcarListo(
                         @PathVariable Long id,
                         Authentication auth) {
@@ -211,7 +229,7 @@ public class PedidoController {
                         + "Confirma la Salida vinculada → descuenta stock del inventario. "
                         + "Transición: LISTO_PARA_ENTREGA → ENTREGADO.")
         @PostMapping("/{id}/entregar")
-        @PreAuthorize("hasAnyRole('ADMIN', 'BODEGA')")
+        @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'BODEGA')")
         public ResponseEntity<ApiResponse<PedidoDTO.Response>> entregar(
                         @PathVariable Long id,
                         Authentication auth) {

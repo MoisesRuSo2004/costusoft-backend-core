@@ -5,6 +5,7 @@ import com.costusoft.inventory_system.module.pedido.dto.PedidoDTO;
 import com.costusoft.inventory_system.shared.dto.PageDTO;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -25,6 +26,9 @@ public interface PedidoService {
 
     /** Solo BORRADOR. Reemplaza detalles completos. */
     PedidoDTO.Response actualizar(Long id, PedidoDTO.Request request, String username);
+
+    /** Actualiza solo la fecha estimada de entrega. Válido en cualquier estado activo. */
+    PedidoDTO.Response actualizarFechaEntrega(Long id, LocalDate fecha, String username);
 
     /** Solo ADMIN. Solo BORRADOR. */
     void eliminar(Long id);

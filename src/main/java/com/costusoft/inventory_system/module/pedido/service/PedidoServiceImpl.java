@@ -125,6 +125,30 @@ public class PedidoServiceImpl implements PedidoService {
         }
 
         @Override
+        public PedidoDTO.Response actualizarFechaEntrega(Long id, LocalDate fecha, String username) {
+                Pedido pedido = pedidoRepository.findById(id)
+                                .orElseThrow(() -> new ResourceNotFoundException("Pedido", id));
+
+                if (pedido.getEstado() == EstadoPedido.ENTREGADO
+                                || pedido.getEstado() == EstadoPedido.CANCELADO) {
+                        throw new BusinessException(
+                                        "No se puede modificar la fecha de un pedido en estado "
+                                                        + pedido.getEstado());
+                }
+
+                pedido.setFechaEstimadaEntrega(fecha);
+                Pedido updated = pedidoRepository.save(pedido);
+
+                String obs = fecha != null
+                                ? "Fecha estimada de entrega establecida: " + fecha.format(DATE_FMT)
+                                : "Fecha estimada de entrega eliminada";
+                registrarHistorial(updated, updated.getEstado(), updated.getEstado(), obs, null, username);
+
+                log.info("Fecha entrega actualizada — pedido:{} | fecha:{} | por:{}", id, fecha, username);
+                return toResponse(updated, false);
+        }
+
+        @Override
         public void eliminar(Long id) {
                 Pedido pedido = pedidoRepository.findById(id)
                                 .orElseThrow(() -> new ResourceNotFoundException("Pedido", id));
