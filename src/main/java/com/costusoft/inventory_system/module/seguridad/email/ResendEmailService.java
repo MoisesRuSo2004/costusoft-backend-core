@@ -38,15 +38,15 @@ public class ResendEmailService implements EmailService {
     @Async
     @Override
     public void enviarActivacionCuenta(Usuario usuario, String token, String frontendUrl) {
-        String url = frontendUrl + "/activar-cuenta?token=" + token;
+        String url  = frontendUrl + "/activar-cuenta?token=" + token;
         String html = EmailTemplates.activacionCuenta(usuario.getUsername(), url);
+        String text = "Bienvenido a Costusoft, " + usuario.getUsername() + ".\n\n"
+                    + "Activa tu cuenta en el siguiente enlace (expira en 24 h):\n" + url
+                    + "\n\nSi no esperabas este correo, ignóralo.\n\n— Costusoft";
 
-        enviar(
-            usuario.getCorreo(),
-            "¡Bienvenido a Costusoft! Activa tu cuenta",
-            html,
-            "activacion"
-        );
+        enviar(usuario.getCorreo(),
+            "Activa tu cuenta en Costusoft",
+            html, text, "activacion");
     }
 
     // ── Recuperacion de contrasena ───────────────────────────────────────
@@ -54,15 +54,15 @@ public class ResendEmailService implements EmailService {
     @Async
     @Override
     public void enviarRecuperacionPassword(Usuario usuario, String token, String frontendUrl) {
-        String url = frontendUrl + "/reset-password?token=" + token;
+        String url  = frontendUrl + "/reset-password?token=" + token;
         String html = EmailTemplates.recuperacionPassword(usuario.getUsername(), url);
+        String text = "Hola " + usuario.getUsername() + ",\n\n"
+                    + "Restablece tu contraseña en el siguiente enlace (expira en 15 min):\n" + url
+                    + "\n\nSi no lo solicitaste, ignora este correo.\n\n— Costusoft";
 
-        enviar(
-            usuario.getCorreo(),
-            "Recuperacion de contrasena — Costusoft",
-            html,
-            "recuperacion"
-        );
+        enviar(usuario.getCorreo(),
+            "Restablece tu contraseña — Costusoft",
+            html, text, "recuperacion");
     }
 
     // ── Notificacion nuevo dispositivo ───────────────────────────────────
@@ -78,13 +78,14 @@ public class ResendEmailService implements EmailService {
         String uaResumido = resumirUserAgent(userAgent);
         String html = EmailTemplates.nuevoDispositivo(
                 usuario.getUsername(), ipAddress, uaResumido, fechaHora);
+        String text = "Hola " + usuario.getUsername() + ",\n\n"
+                    + "Detectamos un nuevo acceso a tu cuenta.\n"
+                    + "Fecha: " + fechaHora + "\nIP: " + ipAddress
+                    + "\n\nSi no fuiste tú, cambia tu contraseña de inmediato.\n\n— Costusoft";
 
-        enviar(
-            usuario.getCorreo(),
-            "Nuevo acceso detectado en tu cuenta — Costusoft",
-            html,
-            "nuevo-dispositivo"
-        );
+        enviar(usuario.getCorreo(),
+            "Nuevo acceso detectado — Costusoft",
+            html, text, "nuevo-dispositivo");
     }
 
     // ── Confirmacion cambio de contrasena ────────────────────────────────
@@ -93,24 +94,26 @@ public class ResendEmailService implements EmailService {
     @Override
     public void enviarConfirmacionCambioPassword(Usuario usuario, String fechaHora) {
         String html = EmailTemplates.cambioPasswordConfirmado(usuario.getUsername(), fechaHora);
+        String text = "Hola " + usuario.getUsername() + ",\n\n"
+                    + "Tu contraseña fue actualizada el " + fechaHora + ".\n"
+                    + "Si no realizaste este cambio, contacta al administrador.\n\n— Costusoft";
 
-        enviar(
-            usuario.getCorreo(),
-            "Tu contrasena fue actualizada — Costusoft",
-            html,
-            "cambio-password"
-        );
+        enviar(usuario.getCorreo(),
+            "Tu contraseña fue actualizada — Costusoft",
+            html, text, "cambio-password");
     }
 
     // ── Metodo interno de envio ──────────────────────────────────────────
 
-    private void enviar(String destinatario, String asunto, String htmlContent, String tipo) {
+    private void enviar(String destinatario, String asunto,
+                        String htmlContent, String textContent, String tipo) {
         try {
             CreateEmailOptions params = CreateEmailOptions.builder()
                     .from(emailFrom)
                     .to(destinatario)
                     .subject(asunto)
                     .html(htmlContent)
+                    .text(textContent)
                     .build();
 
             CreateEmailResponse response = resendClient.emails().send(params);
