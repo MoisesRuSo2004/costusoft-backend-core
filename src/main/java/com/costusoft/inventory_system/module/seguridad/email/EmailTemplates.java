@@ -99,7 +99,7 @@ public final class EmailTemplates {
                                              letter-spacing:3px;text-transform:uppercase;
                                              font-family:-apple-system,BlinkMacSystemFont,
                                              'Segoe UI',sans-serif;">
-                                  ✦&nbsp;COSTUSOFT
+                                  🧵&nbsp;COSTUSOFT
                                 </span>
                               </td>
                             </tr>
