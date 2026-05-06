@@ -13,9 +13,9 @@ public class OptimizacionService {
 
     private final OptimizacionClient optimizacionClient;
 
-    public OptimizacionDTO.Response ejecutar(String talla, boolean incluirDemanda, String usuario) {
-        log.info("Ejecutando optimización: talla={}, incluirDemanda={}, usuario={}", talla, incluirDemanda, usuario);
-        OptimizacionDTO.Request request = OptimizacionDTO.Request.of(talla, incluirDemanda, usuario);
+    public OptimizacionDTO.Response ejecutar(boolean incluirDemanda, String usuario) {
+        log.info("Ejecutando optimización: incluirDemanda={}, usuario={}", incluirDemanda, usuario);
+        OptimizacionDTO.Request request = OptimizacionDTO.Request.of(incluirDemanda, usuario);
         return optimizacionClient.optimizar(request);
     }
 

@@ -27,4 +27,7 @@ public interface SolicitudEspecialRepository extends JpaRepository<SolicitudEspe
 
     /** TODAS las solicitudes (sin filtro de estado) — para el panel del ADMIN */
     Page<SolicitudEspecial> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    /** Verifica si un usuario tiene solicitudes especiales registradas */
+    boolean existsByUsuario_Id(Long usuarioId);
 }

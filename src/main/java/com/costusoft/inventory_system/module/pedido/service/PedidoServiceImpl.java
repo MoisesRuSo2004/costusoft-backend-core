@@ -28,8 +28,13 @@ import java.util.*;
  * ──────────────────────────────────────────────────────────────────────────
  * REGLAS CRÍTICAS
  * ──────────────────────────────────────────────────────────────────────────
- * - Stock solo se toca al ENTREGAR (confirma Salida → descuenta inventario).
- * - Al CANCELAR se rechaza la Salida vinculada (stock intacto).
+ * - Stock se descuenta al INICIAR_PRODUCCION (Salida queda CONFIRMADA).
+ *   Motivo: los insumos se retiran del almacén cuando inicia la confección,
+ *   no cuando se hace la entrega. Al momento de entregar, el stock ya fue
+ *   consumido y volver a validarlo causaría falsos bloqueos.
+ * - Al ENTREGAR solo se transiciona el estado — no hay operación de stock.
+ * - Al CANCELAR: si la Salida era CONFIRMADA → restaura el stock.
+ *                si era PENDIENTE (no debería ocurrir) → solo la rechaza.
  * - Solo BORRADOR puede editarse — estados posteriores son inmutables.
  * - calcular() puede re-ejecutarse en BORRADOR o CALCULADO.
  *
@@ -327,12 +332,16 @@ public class PedidoServiceImpl implements PedidoService {
         }
 
         /**
-         * Inicia la producción: genera una Salida PENDIENTE con los insumos necesarios.
+         * Inicia la producción: valida stock, descuenta inventario y genera la
+         * Salida ya CONFIRMADA.
          *
-         * CORRECCIÓN CRÍTICA: agregarInsumos() ahora filtra los insumos de
-         * UniformeInsumo por la talla de cada DetallePedido. Sin este filtro,
-         * se agregarían los insumos de TODAS las tallas configuradas para esa prenda,
-         * resultando en cantidades erróneas (multiplicadas por el número de tallas).
+         * El stock se descuenta aquí porque los materiales salen del almacén al
+         * iniciar la confección. Hacerlo al entregar causaría bloqueos falsos: para
+         * cuando se entrega, esos insumos ya se consumieron produciendo el pedido.
+         *
+         * CORRECCIÓN CRÍTICA: agregarInsumos() filtra los insumos de
+         * UniformeInsumo por la talla de cada DetallePedido. Sin este filtro
+         * se multiplicarían cantidades por número de tallas.
          *
          * Transición: CONFIRMADO → EN_PRODUCCION
          */
@@ -356,13 +365,24 @@ public class PedidoServiceImpl implements PedidoService {
                                                         + "Verifique que las prendas tengan insumos para las tallas solicitadas.");
                 }
 
-                // Crear Salida PENDIENTE
+                // Validar stock ANTES de crear nada — all-or-nothing
+                for (InsumoAgregado acc : agregado.values()) {
+                        int necesario = acc.totalNecesario.setScale(0, RoundingMode.CEILING).intValue();
+                        if (necesario > acc.insumo.getStock()) {
+                                throw new StockInsuficienteException(
+                                                acc.insumo.getNombre(), acc.insumo.getStock(), necesario);
+                        }
+                }
+
+                // Crear Salida y confirmarla inmediatamente (stock sale del almacén ahora)
                 Salida salida = new Salida();
                 salida.setFecha(LocalDate.now());
                 salida.setDescripcion("Producción del pedido " + pedido.getNumeroPedido()
                                 + " — Colegio: " + pedido.getColegio().getNombre());
                 salida.setColegio(pedido.getColegio());
-                salida.setEstado(EstadoMovimiento.PENDIENTE);
+                salida.setEstado(EstadoMovimiento.CONFIRMADA);
+                salida.setConfirmadaPor(username);
+                salida.setConfirmadaAt(LocalDateTime.now());
 
                 for (InsumoAgregado acc : agregado.values()) {
                         int cantidadInt = acc.totalNecesario.setScale(0, RoundingMode.CEILING).intValue();
@@ -372,6 +392,9 @@ public class PedidoServiceImpl implements PedidoService {
                                         .nombreInsumoSnapshot(acc.insumo.getNombre())
                                         .build();
                         salida.agregarDetalle(detalle);
+                        // Descontar stock ahora
+                        acc.insumo.decrementarStock(cantidadInt);
+                        insumoRepository.save(acc.insumo);
                 }
 
                 Salida salidaGuardada = salidaRepository.save(salida);
@@ -380,12 +403,12 @@ public class PedidoServiceImpl implements PedidoService {
                 Pedido saved = pedidoRepository.save(pedido);
 
                 registrarHistorial(saved, EstadoPedido.CONFIRMADO, EstadoPedido.EN_PRODUCCION,
-                                "Producción iniciada",
-                                "Salida PENDIENTE id:" + salidaGuardada.getId()
+                                "Producción iniciada — stock descontado",
+                                "Salida CONFIRMADA id:" + salidaGuardada.getId()
                                                 + " | " + agregado.size() + " tipo(s) de insumo",
                                 username);
 
-                log.info("Pedido en producción — id:{} | salida:{} | insumos:{}",
+                log.info("Pedido en producción — id:{} | salida:{} | insumos:{} | stock descontado",
                                 id, salidaGuardada.getId(), agregado.size());
                 return toResponse(saved, false);
         }
@@ -417,7 +440,8 @@ public class PedidoServiceImpl implements PedidoService {
 
         /**
          * Registra la entrega al colegio.
-         * Confirma la Salida vinculada → descuenta el stock del inventario.
+         * El stock ya fue descontado al iniciar producción — aquí solo se
+         * transiciona el estado.
          * Transición: LISTO_PARA_ENTREGA → ENTREGADO
          */
         @Override
@@ -427,19 +451,15 @@ public class PedidoServiceImpl implements PedidoService {
 
                 if (!pedido.esListoParaEntrega()) {
                         throw new BusinessException(
-                                        "El pedido debe estar LISTO_PARA_ENTREGA para entregarlo. Estado: "
+                                        "El pedido debe estar LISTO_PARA_ENTREGA para entregarlo. Estado actual: "
                                                         + pedido.getEstado());
-                }
-
-                if (pedido.getSalida() != null && pedido.getSalida().isPendiente()) {
-                        confirmarSalidaDirectamente(pedido.getSalida(), username);
                 }
 
                 pedido.setEstado(EstadoPedido.ENTREGADO);
                 Pedido saved = pedidoRepository.save(pedido);
 
                 registrarHistorial(saved, EstadoPedido.LISTO_PARA_ENTREGA, EstadoPedido.ENTREGADO,
-                                "Pedido entregado al colegio. Stock descontado.", null, username);
+                                "Pedido entregado al colegio.", null, username);
 
                 log.info("Pedido ENTREGADO — id:{} | colegio:'{}'", id, pedido.getColegio().getNombre());
                 return toResponse(saved, false);
@@ -462,8 +482,23 @@ public class PedidoServiceImpl implements PedidoService {
 
                 EstadoPedido estadoAnterior = pedido.getEstado();
 
-                if (pedido.getSalida() != null && pedido.getSalida().isPendiente()) {
-                        Salida salida = pedido.getSalida();
+                if (pedido.getSalida() != null) {
+                        Salida salida = salidaRepository.findByIdWithDetalles(pedido.getSalida().getId())
+                                        .orElse(pedido.getSalida());
+
+                        if (salida.isConfirmada()) {
+                                // El stock ya fue descontado al iniciar producción → restaurarlo
+                                for (DetalleSalida ds : salida.getDetalles()) {
+                                        Insumo insumo = insumoRepository.findById(ds.getInsumo().getId())
+                                                        .orElseThrow(() -> new ResourceNotFoundException("Insumo",
+                                                                        ds.getInsumo().getId()));
+                                        insumo.incrementarStock(ds.getCantidad());
+                                        insumoRepository.save(insumo);
+                                }
+                                log.info("Stock restaurado por cancelación — pedido:{} | salida:{}",
+                                                pedido.getNumeroPedido(), salida.getId());
+                        }
+
                         salida.setEstado(EstadoMovimiento.RECHAZADA);
                         salida.setMotivoRechazo("Pedido " + pedido.getNumeroPedido() + " cancelado: " + motivo);
                         salida.setConfirmadaPor(username);

@@ -50,7 +50,7 @@ public class InsumoServiceImpl implements InsumoService {
         Insumo guardado = insumoRepository.save(insumo);
         log.info("Insumo creado — id: {} | nombre: '{}'", guardado.getId(), guardado.getNombre());
 
-        return insumoMapper.toResponse(guardado);
+        return toResponseWithFlags(guardado);
     }
 
     // ── Listar paginado ──────────────────────────────────────────────────
@@ -59,7 +59,7 @@ public class InsumoServiceImpl implements InsumoService {
     @Transactional(readOnly = true)
     public PageDTO<InsumoDTO.Response> listar(Pageable pageable) {
         Page<Insumo> page = insumoRepository.findAll(pageable);
-        return PageDTO.from(page, insumoMapper::toResponse);
+        return PageDTO.from(page, this::toResponseWithFlags);
     }
 
     // ── Obtener por ID ───────────────────────────────────────────────────
@@ -67,8 +67,7 @@ public class InsumoServiceImpl implements InsumoService {
     @Override
     @Transactional(readOnly = true)
     public InsumoDTO.Response obtenerPorId(Long id) {
-        Insumo insumo = findOrThrow(id);
-        return insumoMapper.toResponse(insumo);
+        return toResponseWithFlags(findOrThrow(id));
     }
 
     // ── Actualizar ───────────────────────────────────────────────────────
@@ -77,16 +76,14 @@ public class InsumoServiceImpl implements InsumoService {
     public InsumoDTO.Response actualizar(Long id, InsumoDTO.Request request) {
         Insumo insumo = findOrThrow(id);
 
-        // Validar nombre unico excluyendo el propio registro
         validarNombreUnico(request.getNombre(), id);
 
-        // Actualiza solo los campos no nulos del request sobre la entidad existente
         insumoMapper.updateEntityFromRequest(request, insumo);
 
         Insumo actualizado = insumoRepository.save(insumo);
         log.info("Insumo actualizado — id: {} | nombre: '{}'", actualizado.getId(), actualizado.getNombre());
 
-        return insumoMapper.toResponse(actualizado);
+        return toResponseWithFlags(actualizado);
     }
 
     // ── Eliminar ─────────────────────────────────────────────────────────
@@ -110,7 +107,7 @@ public class InsumoServiceImpl implements InsumoService {
         Insumo actualizado = insumoRepository.save(insumo);
         String accion = Boolean.TRUE.equals(actualizado.getActivo()) ? "reactivado" : "inhabilitado";
         log.info("Insumo {} — id: {} | nombre: '{}'", accion, id, insumo.getNombre());
-        return insumoMapper.toResponse(actualizado);
+        return toResponseWithFlags(actualizado);
     }
 
     // ── Buscar por nombre (solo activos) ────────────────────────────────
@@ -121,7 +118,7 @@ public class InsumoServiceImpl implements InsumoService {
         return insumoRepository
                 .findByNombreContainingIgnoreCaseAndActivoTrue(nombre.trim())
                 .stream()
-                .map(insumoMapper::toResponse)
+                .map(this::toResponseWithFlags)
                 .toList();
     }
 
@@ -133,7 +130,7 @@ public class InsumoServiceImpl implements InsumoService {
         return insumoRepository
                 .findInsumosConStockBajo()
                 .stream()
-                .map(insumoMapper::toResponse)
+                .map(this::toResponseWithFlags)
                 .toList();
     }
 
@@ -149,15 +146,21 @@ public class InsumoServiceImpl implements InsumoService {
         Insumo actualizado = insumoRepository.save(insumo);
 
         log.info("Stock ajustado — insumo: '{}' | anterior: {} | nuevo: {} | observacion: '{}'",
-                insumo.getNombre(),
-                stockAnterior,
-                request.getNuevoStock(),
-                request.getObservacion());
+                insumo.getNombre(), stockAnterior, request.getNuevoStock(), request.getObservacion());
 
-        return insumoMapper.toResponse(actualizado);
+        return toResponseWithFlags(actualizado);
     }
 
     // ── Helpers privados ─────────────────────────────────────────────────
+
+    /** Convierte entidad a DTO e inyecta el flag de eliminabilidad */
+    private InsumoDTO.Response toResponseWithFlags(Insumo insumo) {
+        InsumoDTO.Response response = insumoMapper.toResponse(insumo);
+        boolean tieneMov = insumoRepository.tieneDetallesEntrada(insumo.getId())
+                        || insumoRepository.tieneDetallesSalida(insumo.getId());
+        response.setPuedeEliminar(!tieneMov);
+        return response;
+    }
 
     private Insumo findOrThrow(Long id) {
         return insumoRepository.findById(id)

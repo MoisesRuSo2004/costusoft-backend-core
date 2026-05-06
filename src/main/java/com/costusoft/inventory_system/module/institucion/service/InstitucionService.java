@@ -4,7 +4,6 @@ import com.costusoft.inventory_system.entity.SolicitudEspecial.EstadoSolicitud;
 import com.costusoft.inventory_system.module.ia.dto.IaDTO;
 import com.costusoft.inventory_system.module.institucion.dto.InstitucionDTO;
 import com.costusoft.inventory_system.module.pedido.dto.PedidoDTO;
-import com.costusoft.inventory_system.module.uniforme.dto.UniformeDTO;
 import com.costusoft.inventory_system.shared.dto.PageDTO;
 import org.springframework.data.domain.Pageable;
 

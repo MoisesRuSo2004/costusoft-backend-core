@@ -45,6 +45,7 @@ public class InsumoDTO {
     // ── Response (lo que retorna la API) ────────────────────────────────
 
     @Getter
+    @Setter
     @Builder
     public static class Response {
 
@@ -59,6 +60,8 @@ public class InsumoDTO {
         private final boolean stockBajo;
         private final String createdAt;
         private final String updatedAt;
+        /** true = no tiene entradas ni salidas y puede ser eliminado físicamente */
+        private boolean puedeEliminar;
     }
 
     // ── Stock Update (ajuste puntual de stock) ──────────────────────────

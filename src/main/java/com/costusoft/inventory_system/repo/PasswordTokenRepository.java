@@ -30,4 +30,8 @@ public interface PasswordTokenRepository extends JpaRepository<PasswordToken, Lo
     @Modifying
     @Query("DELETE FROM PasswordToken pt WHERE pt.expiresAt < :ahora")
     void deleteExpiredTokens(@Param("ahora") LocalDateTime ahora);
+
+    /** Elimina todos los tokens de un usuario (antes de eliminarlo) */
+    @Modifying
+    void deleteByUsuario(Usuario usuario);
 }

@@ -69,6 +69,9 @@ public class Usuario extends AuditableEntity {
      * del colegio que accede al portal institucional.
      * Null para ADMIN, USER y BODEGA.
      */
+    @Column(name = "foto_url", length = 512)
+    private String fotoUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "colegio_id",
                 foreignKey = @ForeignKey(name = "fk_usuario_colegio"))

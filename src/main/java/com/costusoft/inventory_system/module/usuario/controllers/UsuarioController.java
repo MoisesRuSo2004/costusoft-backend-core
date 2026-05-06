@@ -12,11 +12,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Controller REST del modulo Usuario.
@@ -131,5 +133,26 @@ public class UsuarioController {
 
         usuarioService.cambiarPassword(request);
         return ResponseEntity.ok(ApiResponse.ok("Contrasena actualizada exitosamente"));
+    }
+
+    // ── TODOS: Foto de perfil ────────────────────────────────────────────
+
+    @Operation(summary = "Subir o reemplazar foto de perfil",
+               description = "Multipart/form-data. Campo: 'foto'. Máximo 5 MB, solo imágenes.")
+    @PatchMapping(value = "/mi-foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UsuarioDTO.Response>> subirFoto(
+            @RequestPart("foto") MultipartFile foto) {
+
+        return ResponseEntity.ok(
+                ApiResponse.ok("Foto de perfil actualizada", usuarioService.subirFoto(foto)));
+    }
+
+    @Operation(summary = "Eliminar foto de perfil")
+    @DeleteMapping("/mi-foto")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UsuarioDTO.Response>> eliminarFoto() {
+        return ResponseEntity.ok(
+                ApiResponse.ok("Foto de perfil eliminada", usuarioService.eliminarFoto()));
     }
 }

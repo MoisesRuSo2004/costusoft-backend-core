@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
 
 @Slf4j
 @Component
@@ -36,8 +35,8 @@ public class OptimizacionClient {
                     .body(request)
                     .retrieve()
                     .body(OptimizacionDTO.Response.class);
-        } catch (RestClientException e) {
-            log.error("Error llamando optimizacion service: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("Error llamando optimizacion service: {}", e.getMessage(), e);
             throw new BusinessException(
                     "El servicio de optimización no está disponible. " +
                             "Verifique que el microservicio Python esté corriendo en el puerto 8002.");
@@ -50,8 +49,8 @@ public class OptimizacionClient {
                     .uri("/historial?limit={limit}", limit)
                     .retrieve()
                     .body(OptimizacionDTO.HistorialResponse.class);
-        } catch (RestClientException e) {
-            log.error("Error obteniendo historial de optimización: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("Error obteniendo historial de optimización: {}", e.getMessage(), e);
             throw new BusinessException("No se pudo obtener el historial de optimización.");
         }
     }
@@ -62,8 +61,8 @@ public class OptimizacionClient {
                     .uri("/historial/{id}/pdf", id)
                     .retrieve()
                     .body(byte[].class);
-        } catch (RestClientException e) {
-            log.error("Error descargando PDF de optimización id={}: {}", id, e.getMessage());
+        } catch (Exception e) {
+            log.error("Error descargando PDF de optimización id={}: {}", id, e.getMessage(), e);
             throw new BusinessException("No se pudo generar el PDF de optimización.");
         }
     }

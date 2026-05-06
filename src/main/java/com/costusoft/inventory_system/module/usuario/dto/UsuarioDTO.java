@@ -103,6 +103,7 @@ public class UsuarioDTO {
     // ── Response ─────────────────────────────────────────────────────────
 
     @Getter
+    @Setter
     @Builder
     public static class Response {
 
@@ -120,8 +121,13 @@ public class UsuarioDTO {
         private final Long colegioId;
         /** Nombre del colegio asociado (solo para rol INSTITUCION). */
         private final String nombreColegio;
+        /** URL de la foto de perfil en Cloudinary. Null si el usuario no tiene foto. */
+        private final String fotoUrl;
         private final String createdAt;
         private final String updatedAt;
         // password NUNCA se incluye en el response
+
+        /** true = no tiene registros relacionados y puede ser eliminado */
+        private boolean puedeEliminar;
     }
 }

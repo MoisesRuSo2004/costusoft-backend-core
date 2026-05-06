@@ -1,8 +1,12 @@
 package com.costusoft.inventory_system.module.usuario.service;
 
+import com.costusoft.inventory_system.config.CloudinaryService;
 import com.costusoft.inventory_system.entity.Colegio;
 import com.costusoft.inventory_system.entity.Usuario;
 import com.costusoft.inventory_system.repo.ColegioRepository;
+import com.costusoft.inventory_system.repo.LoginAuditRepository;
+import com.costusoft.inventory_system.repo.PasswordTokenRepository;
+import com.costusoft.inventory_system.repo.SolicitudEspecialRepository;
 import com.costusoft.inventory_system.repo.UsuarioRepository;
 import com.costusoft.inventory_system.exception.BusinessException;
 import com.costusoft.inventory_system.exception.ResourceNotFoundException;
@@ -21,7 +25,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.UUID;
 
 /**
@@ -41,9 +47,13 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
     private final ColegioRepository colegioRepository;
+    private final SolicitudEspecialRepository solicitudEspecialRepository;
+    private final LoginAuditRepository loginAuditRepository;
+    private final PasswordTokenRepository passwordTokenRepository;
     private final UsuarioMapper usuarioMapper;
     private final PasswordEncoder passwordEncoder;
     private final SeguridadService seguridadService;
+    private final CloudinaryService cloudinaryService;
 
     // ── Crear ────────────────────────────────────────────────────────────
 
@@ -81,7 +91,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         // Genera token de activacion + envia email de bienvenida (async)
         seguridadService.generarYEnviarActivacion(guardado);
 
-        return usuarioMapper.toResponse(guardado);
+        return toResponseWithFlags(guardado);
     }
 
     // ── Listar ───────────────────────────────────────────────────────────
@@ -89,7 +99,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional(readOnly = true)
     public PageDTO<UsuarioDTO.Response> listar(Pageable pageable) {
-        return PageDTO.from(usuarioRepository.findAll(pageable), usuarioMapper::toResponse);
+        return PageDTO.from(usuarioRepository.findAll(pageable), this::toResponseWithFlags);
     }
 
     // ── Obtener por ID ───────────────────────────────────────────────────
@@ -97,14 +107,14 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional(readOnly = true)
     public UsuarioDTO.Response obtenerPorId(Long id) {
-        return usuarioMapper.toResponse(findOrThrow(id));
+        return toResponseWithFlags(findOrThrow(id));
     }
 
     @Override
     public UsuarioDTO.Response obtenerPorUsername(String username) {
         Usuario usuario = usuarioRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario", "username", username));
-        return usuarioMapper.toResponse(usuario);
+        return toResponseWithFlags(usuario);
     }
 
     // ── Actualizar ───────────────────────────────────────────────────────
@@ -131,7 +141,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         Usuario actualizado = usuarioRepository.save(usuario);
         log.info("Usuario actualizado — id: {} | username: '{}'", id, actualizado.getUsername());
 
-        return usuarioMapper.toResponse(actualizado);
+        return toResponseWithFlags(actualizado);
     }
 
     // ── Eliminar ─────────────────────────────────────────────────────────
@@ -145,6 +155,17 @@ public class UsuarioServiceImpl implements UsuarioService {
         if (currentUser.getId().equals(id)) {
             throw new BusinessException("No puedes eliminar tu propia cuenta.");
         }
+
+        // Bloquear si el usuario tiene registros de negocio asociados
+        if (solicitudEspecialRepository.existsByUsuario_Id(id)) {
+            throw new BusinessException(
+                "No se puede eliminar este usuario porque tiene solicitudes especiales registradas. " +
+                "Usa la opcion de inhabilitar si deseas desactivar el acceso.");
+        }
+
+        // Eliminar datos técnicos en cascada (logs y tokens no son registros de negocio)
+        loginAuditRepository.deleteByUsuario(usuario);
+        passwordTokenRepository.deleteByUsuario(usuario);
 
         usuarioRepository.delete(usuario);
         log.info("Usuario eliminado — id: {} | username: '{}'", id, usuario.getUsername());
@@ -200,10 +221,57 @@ public class UsuarioServiceImpl implements UsuarioService {
         Usuario actualizado = usuarioRepository.save(usuario);
 
         log.info("Usuario '{}' — activo: {}", actualizado.getUsername(), actualizado.isActivo());
-        return usuarioMapper.toResponse(actualizado);
+        return toResponseWithFlags(actualizado);
     }
 
     // ── Helpers privados ─────────────────────────────────────────────────
+
+    // ── Foto de perfil ───────────────────────────────────────────────────
+
+    @Override
+    public UsuarioDTO.Response subirFoto(MultipartFile archivo) {
+        Usuario usuario = getAuthenticatedUsuario();
+        try {
+            String url = cloudinaryService.subirFotoPerfil(archivo, usuario.getId());
+            usuario.setFotoUrl(url);
+            Usuario saved = usuarioRepository.save(usuario);
+            log.info("Foto de perfil actualizada — userId:{}", saved.getId());
+            return toResponseWithFlags(saved);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(e.getMessage());
+        } catch (IOException e) {
+            log.error("Error subiendo foto a Cloudinary userId:{} — {}", usuario.getId(), e.getMessage(), e);
+            throw new BusinessException("No se pudo subir la foto. Intenta de nuevo.");
+        }
+    }
+
+    @Override
+    public UsuarioDTO.Response eliminarFoto() {
+        Usuario usuario = getAuthenticatedUsuario();
+        if (usuario.getFotoUrl() == null) {
+            throw new BusinessException("El usuario no tiene foto de perfil.");
+        }
+        cloudinaryService.eliminarFotoPerfil(usuario.getId());
+        usuario.setFotoUrl(null);
+        Usuario saved = usuarioRepository.save(usuario);
+        log.info("Foto de perfil eliminada — userId:{}", saved.getId());
+        return toResponseWithFlags(saved);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────
+
+    private Usuario getAuthenticatedUsuario() {
+        String username = getCurrentUser().getUsername();
+        return usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", "username", username));
+    }
+
+    /** Convierte entidad a DTO e inyecta el flag de eliminabilidad */
+    private UsuarioDTO.Response toResponseWithFlags(Usuario usuario) {
+        UsuarioDTO.Response response = usuarioMapper.toResponse(usuario);
+        response.setPuedeEliminar(!solicitudEspecialRepository.existsByUsuario_Id(usuario.getId()));
+        return response;
+    }
 
     private Usuario findOrThrow(Long id) {
         return usuarioRepository.findById(id)

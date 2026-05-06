@@ -17,7 +17,6 @@ public class OptimizacionDTO {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Request {
-        private String talla = "M";
 
         @JsonProperty("incluir_demanda")
         private boolean incluirDemanda = true;
@@ -27,9 +26,8 @@ public class OptimizacionDTO {
         @JsonProperty("ejecutado_por")
         private String ejecutadoPor;
 
-        public static Request of(String talla, boolean incluirDemanda, String usuario) {
+        public static Request of(boolean incluirDemanda, String usuario) {
             Request r = new Request();
-            r.talla = talla;
             r.incluirDemanda = incluirDemanda;
             r.ejecutadoPor = usuario;
             return r;
@@ -46,6 +44,9 @@ public class OptimizacionDTO {
 
         @JsonProperty("camisa_diario")
         private int camisaDiario;
+
+        @JsonProperty("sueter_diario")
+        private int sueterDiario;
 
         @JsonProperty("pantalon_ef")
         private int pantalonEf;
@@ -65,6 +66,9 @@ public class OptimizacionDTO {
 
         @JsonProperty("utilizacion_pct")
         private double utilizacionPct;
+
+        @JsonProperty("unidad_medida")
+        private String unidadMedida = "";
     }
 
     @Getter
@@ -81,7 +85,6 @@ public class OptimizacionDTO {
         private PlanProduccion plan;
         private Map<String, RecursoInfo> recursos;
         private Map<String, Object> demanda;
-        private String talla;
         private String mensaje;
 
         @JsonProperty("grafica_html")

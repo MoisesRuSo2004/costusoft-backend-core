@@ -38,7 +38,7 @@ public class ResendEmailService implements EmailService {
     @Async
     @Override
     public void enviarActivacionCuenta(Usuario usuario, String token, String frontendUrl) {
-        String url = frontendUrl + "/set-password?token=" + token;
+        String url = frontendUrl + "/activar-cuenta?token=" + token;
         String html = EmailTemplates.activacionCuenta(usuario.getUsername(), url);
 
         enviar(

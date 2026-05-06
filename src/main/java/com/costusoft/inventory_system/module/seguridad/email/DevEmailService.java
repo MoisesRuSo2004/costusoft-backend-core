@@ -32,7 +32,7 @@ public class DevEmailService implements EmailService {
     @Async
     @Override
     public void enviarActivacionCuenta(Usuario usuario, String token, String frontendUrl) {
-        String url = frontendUrl + "/set-password?token=" + token;
+        String url = frontendUrl + "/activar-cuenta?token=" + token;
 
         log.info("""
 
@@ -48,7 +48,7 @@ public class DevEmailService implements EmailService {
                  TOKEN DIRECTO (para Postman):
                      {}
                 {}
-                 BODY para POST /api/seguridad/set-password :
+                 BODY para POST /api/seguridad/activar-cuenta :
                  {{
                    "token": "{}",
                    "password": "TuPassword123!",

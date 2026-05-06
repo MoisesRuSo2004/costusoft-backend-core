@@ -155,6 +155,7 @@ public class AuthServiceImpl implements AuthService {
                 .username(usuario.getUsername())
                 .correo(usuario.getCorreo())
                 .rol(usuario.getRol().name())
+                .fotoUrl(usuario.getFotoUrl())
                 .build();
     }
 

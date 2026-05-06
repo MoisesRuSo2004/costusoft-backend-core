@@ -3,6 +3,7 @@ package com.costusoft.inventory_system.module.usuario.service;
 import com.costusoft.inventory_system.module.usuario.dto.UsuarioDTO;
 import com.costusoft.inventory_system.shared.dto.PageDTO;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface UsuarioService {
 
@@ -33,4 +34,15 @@ public interface UsuarioService {
 
     /** Activa o desactiva un usuario — solo ADMIN */
     UsuarioDTO.Response toggleActivo(Long id);
+
+    /**
+     * Sube o reemplaza la foto de perfil del usuario autenticado.
+     * Almacena la imagen en Cloudinary y persiste la URL en la entidad.
+     */
+    UsuarioDTO.Response subirFoto(MultipartFile archivo);
+
+    /**
+     * Elimina la foto de perfil del usuario autenticado de Cloudinary y la BD.
+     */
+    UsuarioDTO.Response eliminarFoto();
 }

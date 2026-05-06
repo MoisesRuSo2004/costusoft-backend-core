@@ -74,6 +74,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_URLS).permitAll()
 
+                        // Endpoints propios del usuario autenticado (todos los roles)
+                        .requestMatchers(
+                                "/api/usuarios/mi-perfil",
+                                "/api/usuarios/mi-password",
+                                "/api/usuarios/mi-foto").authenticated()
+
                         // Solo ADMIN puede gestionar usuarios
                         .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
 
@@ -88,6 +94,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/salidas/**").hasAnyRole("ADMIN", "USER", "BODEGA")
                         .requestMatchers("/api/colegios/**").hasAnyRole("ADMIN", "USER", "BODEGA")
                         .requestMatchers("/api/uniformes/**").hasAnyRole("ADMIN", "USER", "BODEGA")
+
+                        // Optimizacion ILP — solo ADMIN y USER (operaciones de planeación)
+                        .requestMatchers("/api/optimizacion/**").hasAnyRole("ADMIN", "USER")
 
                         // Dashboard, reportes y calculadora accesibles para todos los roles
                         .requestMatchers("/api/dashboard/**").hasAnyRole("ADMIN", "USER", "BODEGA")

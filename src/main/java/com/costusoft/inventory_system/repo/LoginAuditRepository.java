@@ -28,4 +28,8 @@ public interface LoginAuditRepository extends JpaRepository<LoginAudit, Long> {
     @Modifying
     @Query("DELETE FROM LoginAudit la WHERE la.fechaLogin < :fecha")
     void deleteOlderThan(@Param("fecha") LocalDateTime fecha);
+
+    /** Elimina todos los registros de auditoría de un usuario (antes de eliminarlo) */
+    @Modifying
+    void deleteByUsuario(Usuario usuario);
 }

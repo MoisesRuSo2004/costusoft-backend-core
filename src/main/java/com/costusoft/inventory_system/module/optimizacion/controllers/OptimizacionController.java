@@ -19,52 +19,52 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Optimizacion", description = "Motor ILP de optimización de producción (PuLP + CBC)")
 public class OptimizacionController {
 
-    private final OptimizacionService optimizacionService;
+        private final OptimizacionService optimizacionService;
 
-    @Operation(summary = "Estado del microservicio de optimización")
-    @GetMapping("/status")
-    public ResponseEntity<ApiResponse<Boolean>> status() {
-        boolean up = optimizacionService.servicioDisponible();
-        return ResponseEntity.ok(ApiResponse.ok(
-                up ? "Servicio de optimización disponible"
-                        : "Servicio de optimización no disponible",
-                up));
-    }
+        @Operation(summary = "Estado del microservicio de optimización")
+        @GetMapping("/status")
+        public ResponseEntity<ApiResponse<Boolean>> status() {
+                boolean up = optimizacionService.servicioDisponible();
+                return ResponseEntity.ok(ApiResponse.ok(
+                                up ? "Servicio de optimización disponible"
+                                                : "Servicio de optimización no disponible",
+                                up));
+        }
 
-    @Operation(summary = "Ejecutar optimización semanal de producción")
-    @PostMapping
-    public ResponseEntity<ApiResponse<OptimizacionDTO.Response>> optimizar(
-            @RequestParam(defaultValue = "M") String talla,
-            @RequestParam(defaultValue = "true") boolean incluirDemanda,
-            Authentication auth) {
+        @Operation(summary = "Ejecutar optimización semanal de producción")
+        @PostMapping
+        public ResponseEntity<ApiResponse<OptimizacionDTO.Response>> optimizar(
+                        @RequestParam(defaultValue = "true") boolean incluirDemanda,
+                        Authentication auth) {
 
-        String usuario = auth != null ? auth.getName() : "sistema";
-        OptimizacionDTO.Response resultado = optimizacionService.ejecutar(talla, incluirDemanda, usuario);
+                String usuario = auth != null ? auth.getName() : "sistema";
+                OptimizacionDTO.Response resultado = optimizacionService.ejecutar(incluirDemanda, usuario);
 
-        String mensaje = "OPTIMAL".equals(resultado.getEstado())
-                ? String.format("Plan óptimo generado — Utilidad: $%,.0f COP", resultado.getUtilidadTotal())
-                : "No se encontró solución óptima: " + resultado.getMensaje();
+                String mensaje = "OPTIMAL".equals(resultado.getEstado())
+                                ? String.format("Plan óptimo generado — Utilidad: $%,.0f COP",
+                                                resultado.getUtilidadTotal())
+                                : "No se encontró solución óptima: " + resultado.getMensaje();
 
-        return ResponseEntity.ok(ApiResponse.ok(mensaje, resultado));
-    }
+                return ResponseEntity.ok(ApiResponse.ok(mensaje, resultado));
+        }
 
-    @Operation(summary = "Descargar PDF de una optimización")
-    @GetMapping("/historial/{id}/pdf")
-    public ResponseEntity<byte[]> descargarPdf(@PathVariable int id) {
-        byte[] pdf = optimizacionService.descargarPdf(id);
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_PDF)
-                .header("Content-Disposition", "attachment; filename=\"optimizacion-" + id + ".pdf\"")
-                .body(pdf);
-    }
+        @Operation(summary = "Descargar PDF de una optimización")
+        @GetMapping("/historial/{id}/pdf")
+        public ResponseEntity<byte[]> descargarPdf(@PathVariable int id) {
+                byte[] pdf = optimizacionService.descargarPdf(id);
+                return ResponseEntity.ok()
+                                .contentType(MediaType.APPLICATION_PDF)
+                                .header("Content-Disposition", "attachment; filename=\"optimizacion-" + id + ".pdf\"")
+                                .body(pdf);
+        }
 
-    @Operation(summary = "Historial de optimizaciones ejecutadas")
-    @GetMapping("/historial")
-    public ResponseEntity<ApiResponse<OptimizacionDTO.HistorialResponse>> historial(
-            @RequestParam(defaultValue = "20") int limit) {
+        @Operation(summary = "Historial de optimizaciones ejecutadas")
+        @GetMapping("/historial")
+        public ResponseEntity<ApiResponse<OptimizacionDTO.HistorialResponse>> historial(
+                        @RequestParam(defaultValue = "20") int limit) {
 
-        OptimizacionDTO.HistorialResponse data = optimizacionService.historial(limit);
-        return ResponseEntity.ok(ApiResponse.ok(
-                data.getTotal() + " ejecuciones encontradas", data));
-    }
+                OptimizacionDTO.HistorialResponse data = optimizacionService.historial(limit);
+                return ResponseEntity.ok(ApiResponse.ok(
+                                data.getTotal() + " ejecuciones encontradas", data));
+        }
 }

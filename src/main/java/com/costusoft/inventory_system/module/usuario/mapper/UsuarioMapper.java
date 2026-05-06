@@ -33,6 +33,7 @@ public interface UsuarioMapper {
              expression = "java(usuario.getColegio() != null ? usuario.getColegio().getId() : null)")
     @Mapping(target = "nombreColegio",
              expression = "java(usuario.getColegio() != null ? usuario.getColegio().getNombre() : null)")
+    @Mapping(target = "fotoUrl",    source = "fotoUrl")
     @Mapping(target = "createdAt",
              expression = "java(formatDateTime(usuario.getCreatedAt()))")
     @Mapping(target = "updatedAt",
