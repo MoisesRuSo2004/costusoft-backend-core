@@ -37,9 +37,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/solicitudes-especiales")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "Solicitudes Especiales (Admin)",
-     description = "Panel para que el equipo Costusoft gestione las solicitudes institucionales.")
+@PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+@Tag(name = "Solicitudes Especiales (Admin/Secretaria)",
+     description = "Panel para que el equipo Costusoft (ADMIN y Secretaria) gestione las solicitudes institucionales.")
 public class SolicitudEspecialController {
 
     private final SolicitudEspecialAdminService solicitudService;

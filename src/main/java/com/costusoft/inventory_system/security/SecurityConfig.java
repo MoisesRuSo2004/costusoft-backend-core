@@ -116,9 +116,9 @@ public class SecurityConfig {
                         // (aislamiento por colegio garantizado en el service layer)
                         .requestMatchers("/api/institucion/**").hasRole("INSTITUCION")
 
-                        // Panel admin de solicitudes institucionales
-                        // Solo ADMIN puede ver y gestionar las solicitudes de los colegios
-                        .requestMatchers("/api/solicitudes-especiales/**").hasRole("ADMIN")
+                        // Panel de solicitudes institucionales
+                        // ADMIN y USER (secretaria) pueden ver y gestionar las solicitudes de los colegios
+                        .requestMatchers("/api/solicitudes-especiales/**").hasAnyRole("ADMIN", "USER")
 
                         // Cualquier otra ruta requiere autenticación
                         .anyRequest().authenticated())

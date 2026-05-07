@@ -41,6 +41,15 @@ public class Colegio extends AuditableEntity {
     @Column(name = "direccion", length = 250)
     private String direccion;
 
+    @Size(max = 20, message = "El teléfono no puede superar 20 caracteres")
+    @Column(name = "telefono", length = 20)
+    private String telefono;
+
+    @Email(message = "Formato de correo inválido")
+    @Size(max = 100, message = "El correo no puede superar 100 caracteres")
+    @Column(name = "correo", length = 100)
+    private String correo;
+
     /**
      * Uniformes asociados a este colegio.
      * cascade ALL + orphanRemoval: si se elimina el colegio,

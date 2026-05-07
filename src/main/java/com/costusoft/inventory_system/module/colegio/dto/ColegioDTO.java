@@ -29,6 +29,13 @@ public class ColegioDTO {
 
         @Size(max = 250, message = "La direccion no puede superar 250 caracteres")
         private String direccion;
+
+        @Size(max = 20, message = "El telefono no puede superar 20 caracteres")
+        private String telefono;
+
+        @Email(message = "Formato de correo invalido")
+        @Size(max = 100, message = "El correo no puede superar 100 caracteres")
+        private String correo;
     }
 
     // ── Response ─────────────────────────────────────────────────────────
@@ -40,6 +47,8 @@ public class ColegioDTO {
         private final Long id;
         private final String nombre;
         private final String direccion;
+        private final String telefono;
+        private final String correo;
         private final int totalUniformes;
         private final String createdAt;
         private final String updatedAt;
@@ -54,6 +63,8 @@ public class ColegioDTO {
         private final Long id;
         private final String nombre;
         private final String direccion;
+        private final String telefono;
+        private final String correo;
         private final List<UniformeResumen> uniformes;
         private final String createdAt;
     }
