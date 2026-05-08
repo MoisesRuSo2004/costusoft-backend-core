@@ -121,8 +121,14 @@ public class UniformeServiceImpl implements UniformeService {
                 uniforme.setTipo(request.getTipo());
                 uniforme.setGenero(request.getGenero());
 
-                // Reemplazar insumos por talla completamente
+                // Reemplazar insumos por talla completamente.
+                // ⚠️ IMPORTANTE: se debe hacer saveAndFlush DESPUÉS del clear() y ANTES de
+                // agregar los nuevos insumos. Sin el flush explícito, Hibernate procesa primero
+                // los INSERTs y luego los DELETEs, violando uk_uniforme_insumo_talla cuando
+                // hay registros con la misma (uniforme_id, insumo_id, talla).
                 uniforme.getInsumosRequeridos().clear();
+                uniformeRepository.saveAndFlush(uniforme); // fuerza DELETEs a la BD antes de INSERTs
+
                 if (request.getInsumosRequeridos() != null && !request.getInsumosRequeridos().isEmpty()) {
                         buildInsumosRequeridos(request.getInsumosRequeridos(), uniforme)
                                         .forEach(uniforme::agregarInsumo);

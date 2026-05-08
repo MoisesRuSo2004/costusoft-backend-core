@@ -14,18 +14,30 @@ public class OptimizacionClient {
 
     private final RestClient restClient;
 
+    private final String serviceUrl;
+
     public OptimizacionClient(
             @Value("${optimizacion.service.url:http://localhost:8002}") String serviceUrl,
             @Value("${optimizacion.service.token:mi-token-secreto-interno-cambiar-en-produccion}") String token) {
 
+        this.serviceUrl = serviceUrl;
+
+        // Timeout generoso: la optimización ILP + gráficas matplotlib pueden
+        // tardar varios segundos en Render (CPU limitada en free tier).
+        // connect: 10 s — tiempo para establecer conexión TCP/TLS con Render
+        // read:    90 s — tiempo máximo esperando la respuesta completa del solver
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10_000);
+        factory.setReadTimeout(90_000);
+
         this.restClient = RestClient.builder()
-                .requestFactory(new SimpleClientHttpRequestFactory())
+                .requestFactory(factory)
                 .baseUrl(serviceUrl)
                 .defaultHeader("X-API-Token", token)
                 .defaultHeader("Content-Type", "application/json")
                 .build();
 
-        log.info("OptimizacionClient inicializado — url: {}", serviceUrl);
+        log.info("OptimizacionClient inicializado — url: {} | connectTimeout: 10s | readTimeout: 90s", serviceUrl);
     }
 
     public OptimizacionDTO.Response optimizar(OptimizacionDTO.Request request) {
@@ -36,10 +48,10 @@ public class OptimizacionClient {
                     .retrieve()
                     .body(OptimizacionDTO.Response.class);
         } catch (Exception e) {
-            log.error("Error llamando optimizacion service: {}", e.getMessage(), e);
+            log.error("Error llamando optimizacion service [url={}]: {}", serviceUrl, e.getMessage(), e);
             throw new BusinessException(
-                    "El servicio de optimización no está disponible. " +
-                            "Verifique que el microservicio Python esté corriendo en el puerto 8002.");
+                    "El servicio de optimización no está disponible en [" + serviceUrl + "]. " +
+                            "Verifique la variable de entorno OPTIMIZACION_SERVICE_URL.");
         }
     }
 
