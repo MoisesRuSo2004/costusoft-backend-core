@@ -13,7 +13,6 @@ import org.springframework.web.client.RestClient;
 public class OptimizacionClient {
 
     private final RestClient restClient;
-
     private final String serviceUrl;
 
     public OptimizacionClient(
@@ -22,10 +21,6 @@ public class OptimizacionClient {
 
         this.serviceUrl = serviceUrl;
 
-        // Timeout generoso: la optimización ILP + gráficas matplotlib pueden
-        // tardar varios segundos en Render (CPU limitada en free tier).
-        // connect: 10 s — tiempo para establecer conexión TCP/TLS con Render
-        // read:    90 s — tiempo máximo esperando la respuesta completa del solver
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(10_000);
         factory.setReadTimeout(90_000);
@@ -55,10 +50,13 @@ public class OptimizacionClient {
         }
     }
 
-    public OptimizacionDTO.HistorialResponse historial(int limit) {
+    public OptimizacionDTO.HistorialResponse historial(int limit, Long colegioId) {
         try {
+            String uri = colegioId != null
+                    ? "/historial?limit={limit}&colegio_id={colegioId}"
+                    : "/historial?limit={limit}";
             return restClient.get()
-                    .uri("/historial?limit={limit}", limit)
+                    .uri(uri, limit, colegioId)
                     .retrieve()
                     .body(OptimizacionDTO.HistorialResponse.class);
         } catch (Exception e) {

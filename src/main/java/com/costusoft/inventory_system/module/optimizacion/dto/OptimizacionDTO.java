@@ -18,6 +18,9 @@ public class OptimizacionDTO {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Request {
 
+        @JsonProperty("colegio_id")
+        private Long colegioId;
+
         @JsonProperty("incluir_demanda")
         private boolean incluirDemanda = true;
 
@@ -26,33 +29,13 @@ public class OptimizacionDTO {
         @JsonProperty("ejecutado_por")
         private String ejecutadoPor;
 
-        public static Request of(boolean incluirDemanda, String usuario) {
+        public static Request of(Long colegioId, boolean incluirDemanda, String usuario) {
             Request r = new Request();
+            r.colegioId     = colegioId;
             r.incluirDemanda = incluirDemanda;
-            r.ejecutadoPor = usuario;
+            r.ejecutadoPor  = usuario;
             return r;
         }
-    }
-
-    @Getter
-    @Setter
-    @NoArgsConstructor
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class PlanProduccion {
-        @JsonProperty("pantalon_diario")
-        private int pantalonDiario;
-
-        @JsonProperty("camisa_diario")
-        private int camisaDiario;
-
-        @JsonProperty("sueter_diario")
-        private int sueterDiario;
-
-        @JsonProperty("pantalon_ef")
-        private int pantalonEf;
-
-        @JsonProperty("sueter_ef")
-        private int sueterEf;
     }
 
     @Getter
@@ -77,18 +60,39 @@ public class OptimizacionDTO {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Response {
         private Integer id;
+
+        @JsonProperty("colegio_id")
+        private Long colegioId;
+
+        @JsonProperty("nombre_colegio")
+        private String nombreColegio;
+
         private String estado;
 
         @JsonProperty("utilidad_total")
         private double utilidadTotal;
 
-        private PlanProduccion plan;
+        /** Plan dinámico: {var_key → cantidad}. Ej: {"pantalon_diario": 5, "camisa_diario": 3} */
+        private Map<String, Integer> plan;
+
         private Map<String, RecursoInfo> recursos;
         private Map<String, Object> demanda;
+
+        /** {ins_key → "Tela Lacoste Blanca"} — nombres reales de insumos desde la BD */
+        @JsonProperty("insumo_labels")
+        private Map<String, String> insumoLabels;
+
+        /** {var_key → {cantidad, max_producible, insumo_limitante_nombre, motivo}} */
+        @JsonProperty("detalle_plan")
+        private Map<String, Object> detallePlan;
+
         private String mensaje;
 
         @JsonProperty("grafica_html")
         private String graficaHtml;
+
+        @JsonProperty("grafica_region_html")
+        private String graficaRegionHtml;
 
         @JsonProperty("fecha_ejecucion")
         private LocalDateTime fechaEjecucion;

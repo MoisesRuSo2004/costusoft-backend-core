@@ -13,15 +13,15 @@ public class OptimizacionService {
 
     private final OptimizacionClient optimizacionClient;
 
-    public OptimizacionDTO.Response ejecutar(boolean incluirDemanda, String usuario) {
-        log.info("Ejecutando optimización: incluirDemanda={}, usuario={}", incluirDemanda, usuario);
-        OptimizacionDTO.Request request = OptimizacionDTO.Request.of(incluirDemanda, usuario);
+    public OptimizacionDTO.Response ejecutar(Long colegioId, boolean incluirDemanda, String usuario) {
+        log.info("Ejecutando optimización: colegioId={}, incluirDemanda={}, usuario={}", colegioId, incluirDemanda, usuario);
+        OptimizacionDTO.Request request = OptimizacionDTO.Request.of(colegioId, incluirDemanda, usuario);
         return optimizacionClient.optimizar(request);
     }
 
-    public OptimizacionDTO.HistorialResponse historial(int limit) {
-        log.info("Obteniendo historial de optimización (limit={})", limit);
-        return optimizacionClient.historial(limit);
+    public OptimizacionDTO.HistorialResponse historial(int limit, Long colegioId) {
+        log.info("Obteniendo historial de optimización (limit={}, colegioId={})", limit, colegioId);
+        return optimizacionClient.historial(limit, colegioId);
     }
 
     public byte[] descargarPdf(int id) {
