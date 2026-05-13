@@ -4,10 +4,15 @@ import com.costusoft.inventory_system.exception.BusinessException;
 import com.costusoft.inventory_system.module.ia.dto.IaDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Cliente HTTP que se comunica con la API de Groq.
@@ -43,39 +48,110 @@ public class GroqClient {
 
     // ── Chat completions ──────────────────────────────────────────────────
 
+    // Extrae el tiempo de espera en segundos del mensaje de error de Groq.
+    // Ej: "try again in 2.73s" → 3000ms  |  "try again in 50m30s" → -1 (no reintentar)
+    private long parsearEsperaMs(String errorBody) {
+        // Formato minutos: "in 50m30.5s"
+        Matcher minutos = Pattern.compile("in\\s+(\\d+)m[\\d.]*s").matcher(errorBody);
+        if (minutos.find()) return -1; // espera larga (límite diario) — no reintentar
+
+        // Formato segundos: "in 2.73s"
+        Matcher segundos = Pattern.compile("in\\s+([\\d.]+)s").matcher(errorBody);
+        if (segundos.find()) {
+            double secs = Double.parseDouble(segundos.group(1));
+            return (long) (secs * 1000) + 500; // +500ms de margen
+        }
+        return 4_000; // fallback 4s
+    }
+
     /**
-     * Envía un request de chat a Groq y retorna la respuesta completa.
-     *
-     * @param request Request con modelo, mensajes, maxTokens y temperature
-     * @return Respuesta con texto generado y metadatos de uso
-     * @throws BusinessException si Groq no está disponible o la key es inválida
+     * Envía un request de chat a Groq con reintentos inteligentes ante rate-limit (429).
+     * - Si el 429 es TPM (espera segundos) → reintenta hasta 3 veces
+     * - Si el 429 es TPD (espera minutos) → falla inmediato con mensaje claro
+     * - Si es 413 (payload muy grande) → falla inmediato con mensaje claro
+     * - Si es 401 → falla inmediato indicando API key
      */
     public IaDTO.GroqChatResponse consultar(IaDTO.GroqChatRequest request) {
-        try {
-            log.debug("Enviando request a Groq — modelo: {} | tokens_max: {}",
-                    request.getModel(), request.getMaxTokens());
+        int maxIntentos = 3;
 
-            IaDTO.GroqChatResponse response = restClient.post()
-                    .uri("/chat/completions")
-                    .body(request)
-                    .retrieve()
-                    .body(IaDTO.GroqChatResponse.class);
+        for (int intento = 1; intento <= maxIntentos; intento++) {
+            try {
+                log.debug("Groq request — modelo: {} | tokens_max: {} | intento: {}/{}",
+                        request.getModel(), request.getMaxTokens(), intento, maxIntentos);
 
-            if (response == null || response.getChoices() == null || response.getChoices().isEmpty()) {
-                throw new BusinessException("Groq devolvió una respuesta vacía o inválida.");
+                IaDTO.GroqChatResponse response = restClient.post()
+                        .uri("/chat/completions")
+                        .body(request)
+                        .retrieve()
+                        .body(IaDTO.GroqChatResponse.class);
+
+                if (response == null || response.getChoices() == null || response.getChoices().isEmpty()) {
+                    throw new BusinessException("Groq devolvió una respuesta vacía o inválida.");
+                }
+
+                log.debug("Groq OK — tokens_usados: {}",
+                        response.getUsage() != null ? response.getUsage().getTotalTokens() : "N/A");
+
+                return response;
+
+            } catch (HttpClientErrorException e) {
+                String body = e.getResponseBodyAsString();
+                HttpStatus status = HttpStatus.resolve(e.getStatusCode().value());
+
+                if (status == HttpStatus.TOO_MANY_REQUESTS) {
+                    long esperaMs = parsearEsperaMs(body);
+                    if (esperaMs < 0) {
+                        // Límite diario (TPD) — no tiene sentido reintentar
+                        log.error("Groq límite DIARIO alcanzado — {}", body);
+                        throw new BusinessException(
+                                "Se alcanzó el límite diario de consultas IA (plan gratuito Groq). " +
+                                "Intenta de nuevo en aproximadamente 1 hora, o solicita al administrador " +
+                                "que actualice al plan de desarrollo.");
+                    }
+                    if (intento < maxIntentos) {
+                        log.warn("Groq rate limit TPM — esperando {}ms antes del intento {}/{}",
+                                esperaMs, intento + 1, maxIntentos);
+                        try { Thread.sleep(esperaMs); }
+                        catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            throw new BusinessException("Consulta IA interrumpida durante el reintento.");
+                        }
+                    } else {
+                        throw new BusinessException(
+                                "El servicio de IA está saturado por uso intensivo. " +
+                                "Espera unos segundos e intenta de nuevo.");
+                    }
+
+                } else if (status == HttpStatus.PAYLOAD_TOO_LARGE) {
+                    log.error("Groq 413 — contexto demasiado grande: {}", body);
+                    throw new BusinessException(
+                            "La consulta excede el tamaño permitido por el modelo. " +
+                            "Intenta con una pregunta más específica.");
+
+                } else if (status == HttpStatus.UNAUTHORIZED) {
+                    log.error("Groq 401 — API key inválida o expirada");
+                    throw new BusinessException(
+                            "La API key de Groq no es válida o expiró. " +
+                            "Verifique la variable groq.api.key en la configuración.");
+
+                } else {
+                    log.error("Groq error HTTP [{}]: {}", e.getStatusCode(), body);
+                    throw new BusinessException(
+                            "Error inesperado en el servicio de IA [" + e.getStatusCode() + "]. " +
+                            "Intenta nuevamente.");
+                }
+
+            } catch (RestClientException e) {
+                log.error("Error de red llamando a Groq: {}", e.getMessage());
+                throw new BusinessException(
+                        "No se pudo conectar con el servicio de IA. " +
+                        "Verifica la conexión a internet o intenta nuevamente.");
             }
-
-            log.debug("Respuesta Groq recibida — tokens_usados: {}",
-                    response.getUsage() != null ? response.getUsage().getTotalTokens() : "N/A");
-
-            return response;
-
-        } catch (RestClientException e) {
-            log.error("Error llamando a Groq API: {}", e.getMessage());
-            throw new BusinessException(
-                    "El servicio de inteligencia artificial no está disponible en este momento. " +
-                    "Verifique la configuración de la API key o intente nuevamente.");
         }
+
+        throw new BusinessException(
+                "El servicio de IA no respondió tras " + maxIntentos + " intentos. " +
+                "Intenta nuevamente en unos segundos.");
     }
 
     // ── Health check ─────────────────────────────────────────────────────

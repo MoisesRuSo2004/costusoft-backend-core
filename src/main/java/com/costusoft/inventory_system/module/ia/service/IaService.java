@@ -46,7 +46,8 @@ public interface IaService {
     IaDTO.ChatResponse chat(IaDTO.ChatRequest request);
 
     /**
-     * Chat que permite pasar un contexto estructurado (JSON) específico — ej. para un colegio.
+     * Chat que permite pasar un contexto estructurado (JSON) específico — ej. para
+     * un colegio.
      * El backend NO reinyecta el snapshot completo: usa el contexto proporcionado.
      */
     IaDTO.ChatResponse chatWithContext(String contextoJson, IaDTO.ChatRequest request);
@@ -63,7 +64,8 @@ public interface IaService {
 
     /**
      * Genera el briefing ejecutivo del día.
-     * Combina stock, pedidos, movimientos pendientes y alertas en un resumen matutino.
+     * Combina stock, pedidos, movimientos pendientes y alertas en un resumen
+     * matutino.
      *
      * @return Resumen ejecutivo del día en lenguaje natural
      */

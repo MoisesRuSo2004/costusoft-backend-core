@@ -43,7 +43,15 @@ public class IaDTO {
          * Cruza consumo real (últimos 30 días) vs período anterior — detecta picos
          * anómalos
          */
-        ANOMALIAS_CONSUMO
+        ANOMALIAS_CONSUMO,
+        /** Analiza el último plan de producción óptimo generado por el motor ILP */
+        ANALISIS_OPTIMIZACION,
+        /**
+         * Explica el modelo matemático ILP: variables dinámicas, función objetivo,
+         * restricciones de stock y demanda, coeficientes y cómo se tomaron las decisiones
+         * en la última ejecución.
+         */
+        MODELO_MATEMATICO
     }
 
     // ════════════════════════════════════════════════════════════════════════

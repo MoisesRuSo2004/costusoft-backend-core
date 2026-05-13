@@ -51,6 +51,20 @@ public interface UniformeRepository extends JpaRepository<Uniforme, Long> {
             """)
     List<Uniforme> findByIdInWithInsumos(@Param("ids") List<Long> ids);
 
+    /**
+     * Todos los uniformes con sus recetas de insumos precargadas.
+     * Diseñado para el snapshot del chat IA — permite calcular factibilidad
+     * de producción sin N+1.
+     */
+    @Query("""
+                SELECT DISTINCT u FROM Uniforme u
+                LEFT JOIN FETCH u.insumosRequeridos ir
+                LEFT JOIN FETCH ir.insumo
+                LEFT JOIN FETCH u.colegio
+                ORDER BY u.colegio.nombre, u.tipo, u.prenda
+            """)
+    List<Uniforme> findAllWithInsumos();
+
     // ── Tallas disponibles para una prenda ───────────────────────────────
 
     /**

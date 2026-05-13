@@ -104,4 +104,18 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
            WHERE p.id = :id
            """)
     Optional<Pedido> findByIdFull(@Param("id") Long id);
+
+    /**
+     * Todos los pedidos activos (excluye ENTREGADO y CANCELADO) con sus detalles
+     * y uniformes precargados. Diseñado para el snapshot del chat IA — evita N+1.
+     */
+    @Query("""
+           SELECT DISTINCT p FROM Pedido p
+           LEFT JOIN FETCH p.detalles d
+           LEFT JOIN FETCH d.uniforme
+           LEFT JOIN FETCH p.colegio
+           WHERE p.estado NOT IN :estadosExcluidos
+           ORDER BY p.createdAt DESC
+           """)
+    List<Pedido> findActivosWithDetalles(@Param("estadosExcluidos") List<EstadoPedido> estadosExcluidos);
 }
