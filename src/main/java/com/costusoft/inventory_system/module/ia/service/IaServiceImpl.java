@@ -59,12 +59,12 @@ public class IaServiceImpl implements IaService {
                         REGLAS DE ANÁLISIS:
                         - Usa ÚNICAMENTE los datos JSON proporcionados. No inventes ni supongas información.
                         - Responde siempre en español, de forma clara, directa y profesional.
-                        - Sé conciso pero completo. Evita relleno innecesario.
+                        - LÍMITE ESTRICTO: máximo 120 palabras por respuesta. Nunca lo superes.
+                        - Prioriza los 3 puntos más importantes. Si hay más, ignora el resto.
                         - Cuando haya problemas críticos, márcalos con claridad.
-                        - Cuando todo esté en orden, confírmalo brevemente.
-                        - Usa listas cuando haya múltiples elementos que comparar.
-                        - Termina con una recomendación accionable cuando aplique.
-                        - Si los datos están vacíos, indícalo positivamente.
+                        - Cuando todo esté en orden, confírmalo en una sola frase.
+                        - Termina con UNA recomendación accionable cuando aplique.
+                        - Si los datos están vacíos, indícalo en una línea.
                         """;
 
         /**
@@ -88,8 +88,9 @@ public class IaServiceImpl implements IaService {
 
                         ESTILO DE RESPUESTA:
                         - Responde en español, tono profesional pero directo
+                        - LÍMITE ESTRICTO: máximo 120 palabras por respuesta. Nunca lo superes.
                         - Sé preciso con números, fechas y valores monetarios del snapshot
-                        - Si hay múltiples elementos relevantes, usa listas
+                        - Máximo 3 puntos relevantes. Si hay más, menciona solo los más urgentes.
 
                         FORMATO DEL SNAPSHOT:
                         - "insumos_criticos": stock <= stock_minimo — campos: nombre, stock, stock_minimo, unidad, faltante
@@ -102,6 +103,17 @@ public class IaServiceImpl implements IaService {
                         Si una prenda no tiene clave "r": no tiene insumos configurados en BD.
                         - "pedidos_activos": pedidos CONFIRMADO/EN_PRODUCCION/LISTO. Cada detalle tiene: \
                         prenda, cantidad_pedida, talla, max_fabricable, stock_individual_ok.
+                        - "modelo_matematico": descripción SIEMPRE disponible del modelo ILP de optimización. \
+                        Úsala para responder cualquier pregunta sobre cómo funciona el modelo, variables, \
+                        restricciones y utilidades, AUNQUE el optimizador no haya corrido. \
+                        · "variables": x_i dinámicas por colegio, generadas desde uniforme_insumos en BD \
+                        · "restriccion_stock": cada prenda consume coef_ij unidades del insumo j \
+                        · "utilidades_cop": ganancia estimada por prenda — base de la función objetivo Z
+                        - "ultima_optimizacion.detalle_plan": por cada prenda — cantidad producida, \
+                        max_producible, insumo limitante y MOTIVO de la decisión. Explica POR QUÉ el modelo \
+                        decidió producir o no cada prenda.
+                        - "ultima_optimizacion.insumo_labels": nombres legibles para las claves ins_XXXX \
+                        de los recursos. Úsalos al mencionar insumos en la explicación.
 
                         REGLAS PARA CALCULAR MATERIALES (cualquier prenda):
                         - Si el mensaje incluye sección "RECETAS_MENCIONADAS": úsalas para calcular exacto. \
@@ -152,8 +164,9 @@ public class IaServiceImpl implements IaService {
                 String prompt = construirPrompt(request.getTipo(), datos);
 
                 int maxTokens = switch (request.getTipo()) {
-                        case ANALISIS_OPTIMIZACION, MODELO_MATEMATICO -> 1400;
-                        default -> 900;
+                        case MODELO_MATEMATICO -> 900;
+                        case ANALISIS_OPTIMIZACION -> 800;
+                        default -> 600;
                 };
 
                 IaDTO.GroqChatRequest groqRequest = IaDTO.GroqChatRequest.builder()
@@ -244,7 +257,7 @@ public class IaServiceImpl implements IaService {
                                                 IaDTO.GroqMessage.builder().role("system").content(CHAT_SYSTEM_PROMPT)
                                                                 .build(),
                                                 IaDTO.GroqMessage.builder().role("user").content(userMessage).build()))
-                                .maxTokens(1200)
+                                .maxTokens(700)
                                 .temperature(0.2)
                                 .build();
 
@@ -287,7 +300,7 @@ public class IaServiceImpl implements IaService {
                                                 IaDTO.GroqMessage.builder().role("system").content(CHAT_SYSTEM_PROMPT)
                                                                 .build(),
                                                 IaDTO.GroqMessage.builder().role("user").content(userMessage).build()))
-                                .maxTokens(1200)
+                                .maxTokens(700)
                                 .temperature(0.2)
                                 .build();
 
@@ -453,7 +466,7 @@ public class IaServiceImpl implements IaService {
                                                 IaDTO.GroqMessage.builder().role("system").content(SYSTEM_PROMPT)
                                                                 .build(),
                                                 IaDTO.GroqMessage.builder().role("user").content(prompt).build()))
-                                .maxTokens(900)
+                                .maxTokens(600)
                                 .temperature(0.3)
                                 .build();
 
@@ -1057,6 +1070,37 @@ public class IaServiceImpl implements IaService {
                         Map<String, Object> ctx = new LinkedHashMap<>();
                         ctx.put("fecha_actual", hoy.toString());
 
+                        // ── Descripción estática del modelo matemático ────────────────
+                        // Siempre disponible, sin depender del microservicio de optimización.
+                        Map<String, Object> modeloDesc = new LinkedHashMap<>();
+                        modeloDesc.put("tipo", "Programación Lineal Entera Mixta (ILP)");
+                        modeloDesc.put("solver", "CBC (COIN-OR Branch and Cut) via PuLP — Python");
+                        modeloDesc.put("objetivo", "Maximizar Z = Σ(utilidad_i × x_i) para cada prenda i del colegio");
+                        modeloDesc.put("variables", "x_i = cantidad entera de prendas a producir (≥ 0). "
+                                        + "DINÁMICAS: se generan en ejecución desde la tabla uniforme_insumos "
+                                        + "según el colegio_id. La clave es un slug: slug(prenda+tipo) o "
+                                        + "slug(prenda+tipo+género) si no es unisex. Ejemplo: pantalon_diario, camisa_diario_masculino.");
+                        modeloDesc.put("restriccion_stock",
+                                        "Σ(coef_ij × x_i) ≤ stock_j para cada insumo j con stock > 0. "
+                                        + "coef_ij = promedio de cantidad_base en uniforme_insumos para esa combinación prenda-insumo. "
+                                        + "El stock es compartido entre todas las prendas del taller.");
+                        modeloDesc.put("restriccion_demanda",
+                                        "x_i ≤ demanda_i (solo activa si incluir_demanda=true en el request). "
+                                        + "Limita la producción a lo pedido activamente por los colegios.");
+                        Map<String, String> utils = new LinkedHashMap<>();
+                        utils.put("pantalon_diario", "20.000 COP");
+                        utils.put("camisa_diario / blusa_diario", "15.000 COP");
+                        utils.put("bata_diario", "14.000 COP");
+                        utils.put("sueter_diario / falda_diario", "13.000 COP");
+                        utils.put("pantalon_ef", "12.000 COP");
+                        utils.put("sueter_ef", "11.000 COP");
+                        utils.put("otras_prendas", "10.000 COP (defecto)");
+                        modeloDesc.put("utilidades_cop", utils);
+                        modeloDesc.put("nota",
+                                        "Las utilidades son sobreescribibles por el campo 'utilidades' del request. "
+                                        + "Representan la ganancia neta estimada por prenda producida y son la base de la decisión del solver.");
+                        ctx.put("modelo_matematico", modeloDesc);
+
                         // ── Resumen global ────────────────────────────────────────────
                         Map<String, Object> resumen = new LinkedHashMap<>();
                         resumen.put("total_insumos", insumoRepository.count());
@@ -1221,6 +1265,12 @@ public class IaServiceImpl implements IaService {
                                                 opt.put("plan", src.get("plan"));
                                                 opt.put("mensaje", src.get("mensaje"));
                                                 opt.put("fecha_ejecucion", src.get("fecha_ejecucion"));
+                                                // insumo_labels: nombres legibles para las claves ins_XXXX
+                                                if (src.get("insumo_labels") != null)
+                                                        opt.put("insumo_labels", src.get("insumo_labels"));
+                                                // detalle_plan: motivo y cuello de botella por prenda
+                                                if (src.get("detalle_plan") != null)
+                                                        opt.put("detalle_plan", src.get("detalle_plan"));
                                                 // Recursos: solo los que tienen alta utilización (>= 70%)
                                                 Object recursos = src.get("recursos");
                                                 if (recursos instanceof Map<?, ?> resMap) {
@@ -1261,200 +1311,114 @@ public class IaServiceImpl implements IaService {
 
                         case STOCK_BAJO ->
                                 """
-                                                Analiza los siguientes insumos del inventario que tienen stock por debajo del mínimo establecido:
+                                                Insumos con stock bajo:
 
                                                 %s
 
-                                                Si la lista está vacía, indica que todos los insumos están en niveles adecuados.
-                                                Si hay insumos, por favor:
-                                                1. Lista los más críticos primero (stock = 0 o muy cercano al mínimo)
-                                                2. Indica cuáles requieren reabastecimiento inmediato vs. a corto plazo
-                                                3. Da una recomendación concreta de acción
+                                                Si la lista está vacía, di "Todo en niveles adecuados." en una línea.
+                                                Si hay insumos: lista los 3 más críticos (los de stock menor), indica si es urgente o a corto plazo, y da UNA acción concreta. Máximo 120 palabras.
                                                 """
                                                 .formatted(dados(datos));
 
                         case RESUMEN_INVENTARIO -> """
-                                        Analiza el siguiente resumen del estado actual del inventario:
+                                        Resumen del inventario:
 
                                         %s
 
-                                        Por favor:
-                                        1. Evalúa el estado general del sistema (saludable / con alertas / crítico)
-                                        2. Destaca los indicadores más preocupantes
-                                        3. Indica si hay situaciones que requieren atención inmediata
+                                        Indica en una frase el estado general (saludable / con alertas / crítico), señala el indicador más preocupante y si hay algo urgente. Máximo 120 palabras.
                                         """.formatted(dados(datos));
 
                         case PEDIDOS_ACTIVOS -> """
-                                        Analiza los siguientes pedidos activos de uniformes escolares:
+                                        Pedidos activos:
 
                                         %s
 
-                                        Si no hay pedidos activos, indica que la producción está en calma.
-                                        Si hay pedidos, por favor:
-                                        1. Resume el estado actual de la producción por etapa
-                                        2. Identifica pedidos con fecha de entrega próxima o sin fecha definida
-                                        3. Indica si hay cuellos de botella o urgencias
+                                        Si no hay pedidos, di "Producción en calma." en una línea.
+                                        Si hay pedidos: resume el estado por etapa, señala el más urgente y si hay algún cuello de botella. Máximo 120 palabras.
                                         """.formatted(dados(datos));
 
                         case ENTRADAS_PENDIENTES -> """
-                                        Analiza las siguientes entradas de insumos pendientes de confirmación en bodega:
+                                        Entradas pendientes de confirmación:
 
                                         %s
 
-                                        Si no hay entradas pendientes, indícalo positivamente.
-                                        Si las hay:
-                                        1. Resume cuántas están esperando y el volumen total de items
-                                        2. Identifica las entradas más antiguas o con más items (mayor impacto)
-                                        3. Recomienda priorización si es necesario
+                                        Si no hay, di "Sin entradas pendientes." en una línea.
+                                        Si las hay: indica cuántas hay, señala la más antigua o con más ítems, y da UNA acción. Máximo 120 palabras.
                                         """.formatted(dados(datos));
 
                         case SALIDAS_PENDIENTES -> """
-                                        Analiza las siguientes salidas de insumos pendientes de confirmación en bodega:
+                                        Salidas pendientes de confirmación:
 
                                         %s
 
-                                        Si no hay salidas pendientes, indícalo positivamente.
-                                        Si las hay:
-                                        1. Resume cuántas están esperando y los colegios involucrados
-                                        2. Identifica si hay backlog acumulado
-                                        3. Recomienda acciones de priorización
+                                        Si no hay, di "Sin salidas pendientes." en una línea.
+                                        Si las hay: indica cuántas hay y los colegios involucrados, señala si hay backlog acumulado y da UNA acción. Máximo 120 palabras.
                                         """.formatted(dados(datos));
 
                         case ANALISIS_GENERAL -> """
-                                        Realiza un análisis integral del sistema de inventario con los siguientes datos:
+                                        Datos generales del sistema:
 
                                         %s
 
-                                        Por favor proporciona:
-                                        1. Estado general del inventario (saludable / con alertas / crítico)
-                                        2. Los 3 problemas más urgentes a resolver hoy, ordenados por impacto
-                                        3. Una recomendación estratégica para mejorar la gestión esta semana
+                                        En una frase: estado general (saludable / con alertas / crítico). Luego lista los 2 problemas más urgentes y cierra con UNA recomendación para hoy. Máximo 120 palabras.
                                         """.formatted(dados(datos));
 
                         case ANALISIS_PROVEEDORES -> """
-                                        Analiza el historial de entradas de los siguientes proveedores del sistema:
+                                        Historial de proveedores:
 
                                         %s
 
-                                        Si no hay proveedores registrados, indícalo claramente.
-                                        Si los hay:
-                                        1. Clasifica a los proveedores por confiabilidad (tasa de aprobación)
-                                        2. Identifica el proveedor más confiable y el menos confiable
-                                        3. Señala proveedores con entradas rechazadas frecuentes
-                                        4. Indica qué insumos críticos dependen de cada proveedor
-                                        5. Da recomendaciones para diversificar o fortalecer la cadena de suministro
+                                        Si no hay proveedores, indícalo en una línea.
+                                        Si los hay: nombra el más confiable y el menos confiable (con su tasa), señala si alguno tiene rechazos frecuentes y da UNA recomendación. Máximo 120 palabras.
                                         """.formatted(dados(datos));
 
                         case ANOMALIAS_CONSUMO -> """
-                                        Analiza las siguientes anomalías de consumo detectadas comparando los \
-                                        últimos 30 días contra el período anterior:
+                                        Anomalías de consumo (últimos 30 días vs 30 días anteriores):
 
                                         %s
 
-                                        Para cada anomalía:
-                                        1. Explica si es un aumento inusual, una caída o un nuevo consumo
-                                        2. Evalúa el impacto en el inventario según el factor de incremento
-                                        3. Sugiere si puede estar relacionado con un pedido grande o temporada
-                                        4. Recomienda ajustar el stock mínimo si el incremento parece sostenido
-                                        Si no hay anomalías, indica que el consumo es estable.
+                                        Si no hay anomalías, di "Consumo estable." en una línea.
+                                        Si las hay: menciona las 3 más relevantes (tipo + factor), indica el impacto en inventario y da UNA recomendación. Máximo 120 palabras.
                                         """.formatted(dados(datos));
 
                         case PREDICCION_RIESGO ->
                                 """
-                                                Analiza las siguientes predicciones de agotamiento de insumos generadas por \
-                                                los modelos de Machine Learning del sistema (Prophet para series temporales \
-                                                y XGBoost para clasificación de riesgo):
+                                                Predicciones ML de agotamiento de insumos:
 
                                                 %s
 
-                                                Contexto de los campos:
-                                                - dias_hasta_stock_minimo: días restantes hasta llegar al stock mínimo
-                                                - dias_hasta_cero: días restantes hasta agotarse completamente
-                                                - fecha_alerta_estimada: cuándo se alcanzará el stock mínimo
-                                                - fecha_agotamiento_estimada: cuándo se agotará el inventario
-                                                - nivel_riesgo: clasificación del modelo XGBoost (BAJO / MEDIO / ALTO / CRITICO)
-                                                - confianza_modelo: qué tan confiable es la predicción (0.0 a 1.0)
-                                                - recomendacion_ml: sugerencia ya generada por el microservicio de predicción
+                                                Campos clave: dias_hasta_cero, nivel_riesgo (BAJO/MEDIO/ALTO/CRITICO), fecha_agotamiento_estimada.
 
-                                                Si la lista está vacía, indica que todos los insumos tienen niveles de stock saludables.
-                                                Si hay predicciones, por favor:
-                                                1. Lista los insumos más urgentes (menor dias_hasta_cero o nivel CRITICO/ALTO primero)
-                                                2. Para cada insumo crítico indica: cuándo se agota, nivel de riesgo y qué acción tomar
-                                                3. Da un resumen ejecutivo del estado de riesgo general del inventario
-                                                4. Sugiere prioridades de compra para esta semana
+                                                Si la lista está vacía, di "Stock saludable, sin riesgos detectados." en una línea.
+                                                Si hay predicciones: lista los 3 más urgentes (CRITICO/ALTO primero) con cuándo se agotan y qué comprar esta semana. Máximo 120 palabras.
                                                 """
                                                 .formatted(dados(datos));
 
                         case MODELO_MATEMATICO ->
                                 """
-                                                Explica el modelo matemático de optimización de producción de Costusoft \
-                                                usando los siguientes datos técnicos y los resultados de la última ejecución:
+                                                Modelo matemático de optimización (ILP) de Costusoft:
 
                                                 %s
 
-                                                GLOSARIO DE CAMPOS:
-                                                - "descripcion_modelo": estructura estática del modelo ILP
-                                                  · "variables_decision": x_i = prendas a producir. Dinámicas por colegio.
-                                                  · "restriccion_stock": cuánto insumo consume cada prenda (coef_ij) vs stock disponible
-                                                  · "restriccion_demanda_opcional": límite superior por pedidos activos
-                                                  · "utilidades_por_defecto_cop": ganancia estimada por prenda en COP
-                                                  · "fuentes_de_datos": de qué tablas viene cada dato
-                                                - "ultima_ejecucion": datos reales del último cálculo
-                                                  · "plan": variables x_i con sus valores óptimos (cuánto producir de cada prenda)
-                                                  · "recursos": restricciones de stock — usado, disponible, holgura, utilización_pct
-                                                  · "detalle_plan": por prenda — max_producible, insumo_limitante_nombre, \
-                                                coef del insumo limitante, eficiencia COP/unidad de insumo, motivo
-                                                  · "demanda": si se incluyó, qué se pidió vs el máximo del modelo
-                                                  · "insumo_labels": nombres legibles de cada ins_key
-                                                  · "utilidad_total": valor de la función objetivo Z en COP
+                                                Explica de forma clara y directa:
+                                                1. Qué hace el modelo y para qué sirve en el taller (1-2 frases)
+                                                2. Las variables de decisión y la función objetivo (utilidades en COP)
+                                                3. El resultado de la última ejecución: plan de producción, cuello de botella y UNA acción para mejorar la utilidad
 
-                                                Por favor explica de forma clara y profesional:
-                                                1. **Qué tipo de modelo es** y para qué sirve en el contexto del taller
-                                                2. **Cuáles son las variables de decisión** — cuántas hay, qué representa cada una, \
-                                                cómo se generan dinámicamente desde la base de datos
-                                                3. **La función objetivo** — qué maximiza, cuáles son las utilidades asignadas y por qué
-                                                4. **Las restricciones** — explica la restricción de stock con un ejemplo concreto \
-                                                usando los coeficientes de la última ejecución (ej: "Para producir 1 pantalón se \
-                                                necesitan X metros de tela, con stock disponible de Y metros")
-                                                5. **Cómo se tomaron las decisiones en la última ejecución** — qué variables \
-                                                tomaron valor positivo, cuál fue el cuello de botella, por qué algunas prendas \
-                                                quedaron en cero
-                                                6. **La eficiencia del modelo** — qué recursos se saturaron, cuáles tienen holgura, \
-                                                qué se ganaría comprando más del insumo limitante
-                                                7. **Una conclusión práctica** para el equipo: qué acción concreta mejora la utilidad
-
-                                                Si no hay ejecuciones previas, explica solo la estructura del modelo y \
-                                                recomienda correr el optimizador primero.
+                                                Si no hay ejecuciones previas, explica solo la estructura y recomienda correr el optimizador. Máximo 150 palabras.
                                                 """
                                                 .formatted(dados(datos));
 
                         case ANALISIS_OPTIMIZACION ->
                                 """
-                                                Analiza los siguientes resultados del motor de optimización lineal (ILP) \
-                                                de Costusoft, que calcula el plan de producción óptimo para maximizar \
-                                                la utilidad del taller con el stock disponible:
+                                                Resultados del optimizador ILP de Costusoft:
 
                                                 %s
 
-                                                Contexto de los campos:
-                                                - estado: OPTIMAL (solución encontrada) / INFEASIBLE (stock insuficiente) / ERROR
-                                                - plan: cantidad de prendas a producir por tipo (variables del modelo)
-                                                - utilidad_total: ganancia proyectada en COP si se ejecuta el plan
-                                                - recursos: por cada insumo — usado, disponible, holgura y utilización_pct
-                                                - detalle_plan: por cada prenda — max_producible, insumo_limitante_nombre, motivo
-                                                - demanda: si se incluyó demanda real de pedidos activos
-                                                - nombre_colegio: colegio para el que se optimizó (o "Todos" si es global)
-                                                - fecha_ejecucion: cuándo se corrió el modelo
+                                                Campos clave: estado (OPTIMAL/INFEASIBLE/ERROR), plan (unidades por prenda), utilidad_total (COP), recursos (utilización_pct), insumo_limitante.
 
-                                                Si la lista está vacía, indica que aún no se ha ejecutado el optimizador.
-                                                Si hay ejecuciones, por favor:
-                                                1. Presenta el plan de producción recomendado más reciente de forma clara \
-                                                (cuántas unidades de cada prenda producir esta semana)
-                                                2. Indica la utilidad total proyectada en COP con formato legible (ej: $1.200.000)
-                                                3. Identifica el CUELLO DE BOTELLA: qué insumo limita la producción y por qué
-                                                4. Señala qué insumos tienen alta utilización (>80%%) y cuáles tienen capacidad ociosa
-                                                5. Si hay restricciones de demanda, indica si la demanda está siendo satisfecha
-                                                6. Da una recomendación accionable: ¿qué insumo comprar primero para aumentar producción?
+                                                Si la lista está vacía, di "Optimizador no ejecutado aún." en una línea.
+                                                Si hay resultados: presenta el plan del más reciente (unidades por prenda + utilidad en COP), identifica el cuello de botella y da UNA recomendación de compra. Máximo 150 palabras.
                                                 """
                                                 .formatted(dados(datos));
                 };
