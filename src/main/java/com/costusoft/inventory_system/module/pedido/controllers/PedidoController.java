@@ -59,17 +59,18 @@ public class PedidoController {
 
         // ── Listar ───────────────────────────────────────────────────────────
 
-        @Operation(summary = "Listar pedidos paginados")
+        @Operation(summary = "Listar pedidos paginados", description = "Soporta filtros opcionales por estado y/o colegio combinados.")
         @GetMapping
         @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'BODEGA')")
         public ResponseEntity<ApiResponse<PageDTO<PedidoDTO.Response>>> listar(
                         @RequestParam(defaultValue = "0") @Min(0) int page,
-                        @RequestParam(defaultValue = "10") @Min(1) int size) {
+                        @RequestParam(defaultValue = "10") @Min(1) int size,
+                        @RequestParam(required = false) EstadoPedido estado,
+                        @RequestParam(required = false) Long colegioId) {
 
+                PageRequest pageable = PageRequest.of(page, Math.min(size, 100), Sort.by("createdAt").descending());
                 return ResponseEntity.ok(ApiResponse.ok("Pedidos obtenidos",
-                                pedidoService.listar(
-                                                PageRequest.of(page, Math.min(size, 100),
-                                                                Sort.by("createdAt").descending()))));
+                                pedidoService.listarFiltrado(estado, colegioId, pageable)));
         }
 
         // ── Listar por estado ────────────────────────────────────────────────

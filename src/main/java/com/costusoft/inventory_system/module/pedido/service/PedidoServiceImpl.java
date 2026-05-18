@@ -209,6 +209,28 @@ public class PedidoServiceImpl implements PedidoService {
 
         @Override
         @Transactional(readOnly = true)
+        public PageDTO<PedidoDTO.Response> listarFiltrado(EstadoPedido estado, Long colegioId, Pageable pageable) {
+                if (estado != null && colegioId != null) {
+                        return PageDTO.from(
+                                        pedidoRepository.findByEstadoAndColegioIdOrderByCreatedAtDesc(estado, colegioId, pageable),
+                                        p -> toResponse(p, false));
+                } else if (estado != null) {
+                        return PageDTO.from(
+                                        pedidoRepository.findByEstadoOrderByCreatedAtDesc(estado, pageable),
+                                        p -> toResponse(p, false));
+                } else if (colegioId != null) {
+                        return PageDTO.from(
+                                        pedidoRepository.findByColegioIdOrderByCreatedAtDesc(colegioId, pageable),
+                                        p -> toResponse(p, false));
+                } else {
+                        return PageDTO.from(
+                                        pedidoRepository.findAllByOrderByCreatedAtDesc(pageable),
+                                        p -> toResponse(p, false));
+                }
+        }
+
+        @Override
+        @Transactional(readOnly = true)
         public List<PedidoDTO.HistorialResponse> obtenerHistorial(Long id) {
                 if (!pedidoRepository.existsById(id)) {
                         throw new ResourceNotFoundException("Pedido", id);

@@ -43,6 +43,9 @@ public interface PedidoService {
 
     PageDTO<PedidoDTO.Response> listarPorColegio(Long colegioId, Pageable pageable);
 
+    /** Filtra por estado y/o colegio en una sola consulta. Ambos parámetros son opcionales. */
+    PageDTO<PedidoDTO.Response> listarFiltrado(EstadoPedido estado, Long colegioId, Pageable pageable);
+
     List<PedidoDTO.HistorialResponse> obtenerHistorial(Long id);
 
     // ── Transiciones de estado ───────────────────────────────────────────
