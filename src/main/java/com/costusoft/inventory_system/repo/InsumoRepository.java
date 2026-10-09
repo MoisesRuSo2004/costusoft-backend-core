@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,4 +39,16 @@ public interface InsumoRepository extends JpaRepository<Insumo, Long> {
     /** ¿El insumo tiene detalles en alguna salida? */
     @Query("SELECT COUNT(ds) > 0 FROM DetalleSalida ds WHERE ds.insumo.id = :insumoId")
     boolean tieneDetallesSalida(@Param("insumoId") Long insumoId);
+
+    /**
+     * De los insumos dados, cuales aparecen en alguna entrada.
+     * Version por lote de {@link #tieneDetallesEntrada}: una sola consulta para
+     * toda una pagina en lugar de una por insumo (evita el problema N+1).
+     */
+    @Query("SELECT DISTINCT de.insumo.id FROM DetalleEntrada de WHERE de.insumo.id IN :insumoIds")
+    List<Long> findIdsConDetallesEntrada(@Param("insumoIds") Collection<Long> insumoIds);
+
+    /** De los insumos dados, cuales aparecen en alguna salida (version por lote). */
+    @Query("SELECT DISTINCT ds.insumo.id FROM DetalleSalida ds WHERE ds.insumo.id IN :insumoIds")
+    List<Long> findIdsConDetallesSalida(@Param("insumoIds") Collection<Long> insumoIds);
 }

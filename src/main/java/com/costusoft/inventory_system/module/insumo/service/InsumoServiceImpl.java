@@ -15,7 +15,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Implementacion del servicio de insumos.
@@ -59,7 +64,9 @@ public class InsumoServiceImpl implements InsumoService {
     @Transactional(readOnly = true)
     public PageDTO<InsumoDTO.Response> listar(Pageable pageable) {
         Page<Insumo> page = insumoRepository.findAll(pageable);
-        return PageDTO.from(page, this::toResponseWithFlags);
+        Map<Long, InsumoDTO.Response> responsesPorId = toResponsesWithFlags(page.getContent()).stream()
+                .collect(Collectors.toMap(InsumoDTO.Response::getId, Function.identity()));
+        return PageDTO.from(page, insumo -> responsesPorId.get(insumo.getId()));
     }
 
     // ── Obtener por ID ───────────────────────────────────────────────────
@@ -115,11 +122,8 @@ public class InsumoServiceImpl implements InsumoService {
     @Override
     @Transactional(readOnly = true)
     public List<InsumoDTO.Response> buscarPorNombre(String nombre) {
-        return insumoRepository
-                .findByNombreContainingIgnoreCaseAndActivoTrue(nombre.trim())
-                .stream()
-                .map(this::toResponseWithFlags)
-                .toList();
+        return toResponsesWithFlags(
+                insumoRepository.findByNombreContainingIgnoreCaseAndActivoTrue(nombre.trim()));
     }
 
     // ── Stock bajo ───────────────────────────────────────────────────────
@@ -127,11 +131,7 @@ public class InsumoServiceImpl implements InsumoService {
     @Override
     @Transactional(readOnly = true)
     public List<InsumoDTO.Response> obtenerConStockBajo() {
-        return insumoRepository
-                .findInsumosConStockBajo()
-                .stream()
-                .map(this::toResponseWithFlags)
-                .toList();
+        return toResponsesWithFlags(insumoRepository.findInsumosConStockBajo());
     }
 
     // ── Ajuste manual de stock ───────────────────────────────────────────
@@ -160,6 +160,28 @@ public class InsumoServiceImpl implements InsumoService {
                         || insumoRepository.tieneDetallesSalida(insumo.getId());
         response.setPuedeEliminar(!tieneMov);
         return response;
+    }
+
+    /**
+     * Version por lote de {@link #toResponseWithFlags}: calcula el flag de
+     * eliminabilidad de todos los insumos con 2 consultas en total, en lugar
+     * de 2 por insumo (N+1). Mantiene el orden de la lista recibida.
+     */
+    private List<InsumoDTO.Response> toResponsesWithFlags(List<Insumo> insumos) {
+        if (insumos.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = insumos.stream().map(Insumo::getId).toList();
+        Set<Long> conMovimientos = new HashSet<>(insumoRepository.findIdsConDetallesEntrada(ids));
+        conMovimientos.addAll(insumoRepository.findIdsConDetallesSalida(ids));
+
+        return insumos.stream()
+                .map(insumo -> {
+                    InsumoDTO.Response response = insumoMapper.toResponse(insumo);
+                    response.setPuedeEliminar(!conMovimientos.contains(insumo.getId()));
+                    return response;
+                })
+                .toList();
     }
 
     private Insumo findOrThrow(Long id) {
