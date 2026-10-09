@@ -23,4 +23,10 @@ public class MineriaService {
                 solicitud.getInsumoIds(), solicitud.getHorizonteDias(), solicitud.getEscenario() != null);
         return mineriaClient.pronostico(solicitud);
     }
+
+    public JsonNode anomalias(MineriaDTO.AnomaliasRequest solicitud) {
+        log.info("Anomalias — {} {}..{} | sensibilidad: {}",
+                solicitud.getTipo(), solicitud.getDesde(), solicitud.getHasta(), solicitud.getSensibilidad());
+        return mineriaClient.anomalias(solicitud);
+    }
 }

@@ -30,4 +30,13 @@ public class MineriaController {
     public ResponseEntity<ApiResponse<JsonNode>> pronostico(@Valid @RequestBody MineriaDTO.PronosticoRequest solicitud) {
         return ResponseEntity.ok(ApiResponse.ok("Pronostico calculado", mineriaService.pronostico(solicitud)));
     }
+
+    @Operation(summary = "Deteccion de anomalias en movimientos",
+            description = "Movimientos que se alejan de lo habitual para su insumo (cantidades muy altas o "
+                    + "muy bajas, repeticiones, combinaciones raras) con estadistica robusta, Isolation Forest "
+                    + "y LOF. Incluye la validacion del detector con anomalias simuladas en memoria.")
+    @PostMapping("/anomalias")
+    public ResponseEntity<ApiResponse<JsonNode>> anomalias(@Valid @RequestBody MineriaDTO.AnomaliasRequest solicitud) {
+        return ResponseEntity.ok(ApiResponse.ok("Anomalias detectadas", mineriaService.anomalias(solicitud)));
+    }
 }

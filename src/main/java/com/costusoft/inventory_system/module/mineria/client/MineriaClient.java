@@ -47,20 +47,38 @@ public class MineriaClient {
     }
 
     public JsonNode pronostico(MineriaDTO.PronosticoRequest solicitud) {
+        return enviar("/mineria/pronostico", aCuerpoPython(solicitud));
+    }
+
+    public JsonNode anomalias(MineriaDTO.AnomaliasRequest solicitud) {
+        Map<String, Object> cuerpo = new LinkedHashMap<>();
+        cuerpo.put("desde", solicitud.getDesde() == null ? null : solicitud.getDesde().toString());
+        cuerpo.put("hasta", solicitud.getHasta() == null ? null : solicitud.getHasta().toString());
+        cuerpo.put("insumo_ids", solicitud.getInsumoIds());
+        cuerpo.put("tipo", solicitud.getTipo());
+        cuerpo.put("sensibilidad", solicitud.getSensibilidad());
+        cuerpo.put("limite", solicitud.getLimite());
+        cuerpo.put("validar", solicitud.getValidar());
+        cuerpo.put("anomalias_simuladas", solicitud.getAnomaliasSimuladas());
+        return enviar("/mineria/anomalias", cuerpo);
+    }
+
+    /** POST al microservicio con errores traducidos a mensajes claros. */
+    private JsonNode enviar(String ruta, Map<String, Object> cuerpo) {
         try {
             return restClient.post()
-                    .uri("/mineria/pronostico")
-                    .body(aCuerpoPython(solicitud))
+                    .uri(ruta)
+                    .body(cuerpo)
                     .retrieve()
                     .body(JsonNode.class);
         } catch (RestClientResponseException e) {
             if (e.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
                 throw new ResourceNotFoundException("Ninguno de los insumos indicados existe.");
             }
-            log.error("Mineria respondio {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("Mineria {} respondio {}: {}", ruta, e.getStatusCode(), e.getResponseBodyAsString());
             throw new BusinessException("El servicio de mineria de datos rechazo la solicitud.");
         } catch (RestClientException e) {
-            log.error("Mineria no disponible: {}", e.getMessage());
+            log.error("Mineria no disponible ({}): {}", ruta, e.getMessage());
             throw new BusinessException(
                     "El servicio de mineria de datos no esta disponible en este momento. Intenta de nuevo en un minuto.");
         }
