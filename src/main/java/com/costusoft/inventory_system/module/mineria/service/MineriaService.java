@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Mineria de datos: pronostico dinamico (y en adelante anomalias y patrones),
+ * Mineria de datos: deteccion de anomalias en los movimientos,
  * calculado por el microservicio Python.
  */
 @Slf4j
@@ -17,12 +17,6 @@ import org.springframework.stereotype.Service;
 public class MineriaService {
 
     private final MineriaClient mineriaClient;
-
-    public JsonNode pronostico(MineriaDTO.PronosticoRequest solicitud) {
-        log.info("Pronostico dinamico — insumos: {} | horizonte: {} d | escenario: {}",
-                solicitud.getInsumoIds(), solicitud.getHorizonteDias(), solicitud.getEscenario() != null);
-        return mineriaClient.pronostico(solicitud);
-    }
 
     public JsonNode anomalias(MineriaDTO.AnomaliasRequest solicitud) {
         log.info("Anomalias — {} {}..{} | sensibilidad: {}",

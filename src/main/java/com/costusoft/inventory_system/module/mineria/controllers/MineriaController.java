@@ -16,20 +16,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/mineria")
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-@Tag(name = "Mineria de datos", description = "Pronostico dinamico, anomalias y patrones de consumo (microservicio Python)")
+@Tag(name = "Mineria de datos", description = "Deteccion de anomalias en los movimientos (microservicio Python)")
 public class MineriaController {
 
     private final MineriaService mineriaService;
-
-    @Operation(summary = "Pronostico dinamico de insumos",
-            description = "El usuario elige de 1 a 5 insumos, el horizonte (7-365 dias), la agrupacion "
-                    + "(dia, semana o mes), el plazo del proveedor y opcionalmente un escenario '¿y si?' "
-                    + "(prendas de un pedido hipotetico). Cada insumo usa el modelo que mejor resulto "
-                    + "en el backtesting (Prophet, promedio de 12 meses o estacional).")
-    @PostMapping("/pronostico")
-    public ResponseEntity<ApiResponse<JsonNode>> pronostico(@Valid @RequestBody MineriaDTO.PronosticoRequest solicitud) {
-        return ResponseEntity.ok(ApiResponse.ok("Pronostico calculado", mineriaService.pronostico(solicitud)));
-    }
 
     @Operation(summary = "Deteccion de anomalias en movimientos",
             description = "Movimientos que se alejan de lo habitual para su insumo (cantidades muy altas o "

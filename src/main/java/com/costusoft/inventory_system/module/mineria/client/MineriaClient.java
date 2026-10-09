@@ -13,7 +13,6 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -21,7 +20,7 @@ import java.util.Map;
  * Cliente del modulo de mineria de datos del microservicio Python (/mineria/*).
  *
  * Comparte URL y token con la prediccion clasica. Tiempos de espera explicitos:
- * un pronostico con escenario y backtesting puede tardar varios segundos.
+ * el analisis con validacion puede tardar varios segundos.
  */
 @Slf4j
 @Component
@@ -44,10 +43,6 @@ public class MineriaClient {
                 .defaultHeader("X-API-Token", token)
                 .defaultHeader("Content-Type", "application/json")
                 .build();
-    }
-
-    public JsonNode pronostico(MineriaDTO.PronosticoRequest solicitud) {
-        return enviar("/mineria/pronostico", aCuerpoPython(solicitud));
     }
 
     public JsonNode anomalias(MineriaDTO.AnomaliasRequest solicitud) {
@@ -82,31 +77,5 @@ public class MineriaClient {
             throw new BusinessException(
                     "El servicio de mineria de datos no esta disponible en este momento. Intenta de nuevo en un minuto.");
         }
-    }
-
-    /** El microservicio usa snake_case (Pydantic); el frontend envia camelCase. */
-    private static Map<String, Object> aCuerpoPython(MineriaDTO.PronosticoRequest s) {
-        Map<String, Object> cuerpo = new LinkedHashMap<>();
-        cuerpo.put("insumo_ids", s.getInsumoIds());
-        cuerpo.put("horizonte_dias", s.getHorizonteDias());
-        cuerpo.put("agrupacion", s.getAgrupacion());
-        cuerpo.put("plazo_proveedor_dias", s.getPlazoProveedorDias());
-        if (s.getEscenario() != null) {
-            Map<String, Object> escenario = new HashMap<>();
-            escenario.put("prendas", s.getEscenario().getPrendas().stream()
-                    .map(p -> {
-                        Map<String, Object> prenda = new HashMap<>();
-                        prenda.put("uniforme_id", p.getUniformeId());
-                        prenda.put("talla", p.getTalla());
-                        prenda.put("cantidad", p.getCantidad());
-                        return prenda;
-                    })
-                    .toList());
-            if (s.getEscenario().getFecha() != null) {
-                escenario.put("fecha", s.getEscenario().getFecha().toString());
-            }
-            cuerpo.put("escenario", escenario);
-        }
-        return cuerpo;
     }
 }
