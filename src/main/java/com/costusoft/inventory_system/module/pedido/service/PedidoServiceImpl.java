@@ -6,11 +6,13 @@ import com.costusoft.inventory_system.exception.ResourceNotFoundException;
 import com.costusoft.inventory_system.exception.StockInsuficienteException;
 import com.costusoft.inventory_system.module.calculadora.dto.CalculadoraDTO;
 import com.costusoft.inventory_system.module.calculadora.service.CalculadoraService;
+import com.costusoft.inventory_system.module.notificacion.evento.PedidoListoEvent;
 import com.costusoft.inventory_system.module.pedido.dto.PedidoDTO;
 import com.costusoft.inventory_system.repo.*;
 import com.costusoft.inventory_system.shared.dto.PageDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,6 +64,7 @@ public class PedidoServiceImpl implements PedidoService {
         private final SalidaRepository salidaRepository;
         private final InsumoRepository insumoRepository;
         private final CalculadoraService calculadoraService;
+        private final ApplicationEventPublisher eventos;
 
         private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -455,6 +458,10 @@ public class PedidoServiceImpl implements PedidoService {
 
                 registrarHistorial(saved, EstadoPedido.EN_PRODUCCION, EstadoPedido.LISTO_PARA_ENTREGA,
                                 "Producción completada, listo para entrega", null, username);
+
+                // Aviso push a los coordinadores del colegio (se envia despues del commit).
+                eventos.publishEvent(new PedidoListoEvent(
+                                saved.getId(), saved.getNumeroPedido(), saved.getColegio().getId()));
 
                 log.info("Pedido listo para entrega — id:{}", id);
                 return toResponse(saved, false);
