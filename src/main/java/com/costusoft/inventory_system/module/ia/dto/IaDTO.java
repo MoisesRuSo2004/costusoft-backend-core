@@ -1,5 +1,6 @@
 package com.costusoft.inventory_system.module.ia.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -182,6 +183,14 @@ public class IaDTO {
 
         /** 0.0 = determinista / 1.0 = creativo. Para análisis de datos: 0.1–0.3 */
         private final Double temperature;
+
+        /**
+         * Solo para modelos de razonamiento (p. ej. openai/gpt-oss-*): "low",
+         * "medium" o "high". Si es null no se envía, para no afectar otros modelos.
+         */
+        @JsonProperty("reasoning_effort")
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private final String reasoningEffort;
     }
 
     /** Mensaje individual en la conversación (system / user / assistant). */

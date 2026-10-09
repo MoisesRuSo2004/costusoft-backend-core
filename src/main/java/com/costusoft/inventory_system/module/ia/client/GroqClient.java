@@ -64,6 +64,34 @@ public class GroqClient {
         return 4_000; // fallback 4s
     }
 
+    /** Tokens extra que se reservan para el razonamiento interno del modelo. */
+    private static final int MARGEN_TOKENS_RAZONAMIENTO = 2048;
+
+    /**
+     * Los modelos de razonamiento (gpt-oss, qwen3, deepseek-r1) gastan tokens
+     * "pensando" antes de responder, y esos tokens cuentan dentro de max_tokens.
+     * Con los topes pensados para LLaMA (600-900) se quedaban sin presupuesto y
+     * devolvian el texto vacio. Aqui se suma un margen para el razonamiento y,
+     * en gpt-oss, se pide razonamiento bajo (respuestas rapidas y concisas).
+     * Para cualquier otro modelo el request se envia sin cambios.
+     */
+    static IaDTO.GroqChatRequest ajustarParaModeloDeRazonamiento(IaDTO.GroqChatRequest request) {
+        String modelo = request.getModel() == null ? "" : request.getModel().toLowerCase();
+        boolean esGptOss = modelo.contains("gpt-oss");
+        boolean razona = esGptOss || modelo.contains("qwen3") || modelo.contains("deepseek-r1");
+        if (!razona) {
+            return request;
+        }
+        int tokensRespuesta = request.getMaxTokens() != null ? request.getMaxTokens() : 1024;
+        return IaDTO.GroqChatRequest.builder()
+                .model(request.getModel())
+                .messages(request.getMessages())
+                .temperature(request.getTemperature())
+                .maxTokens(tokensRespuesta + MARGEN_TOKENS_RAZONAMIENTO)
+                .reasoningEffort(esGptOss ? "low" : request.getReasoningEffort())
+                .build();
+    }
+
     /**
      * Envía un request de chat a Groq con reintentos inteligentes ante rate-limit (429).
      * - Si el 429 es TPM (espera segundos) → reintenta hasta 3 veces
@@ -71,7 +99,8 @@ public class GroqClient {
      * - Si es 413 (payload muy grande) → falla inmediato con mensaje claro
      * - Si es 401 → falla inmediato indicando API key
      */
-    public IaDTO.GroqChatResponse consultar(IaDTO.GroqChatRequest request) {
+    public IaDTO.GroqChatResponse consultar(IaDTO.GroqChatRequest solicitud) {
+        IaDTO.GroqChatRequest request = ajustarParaModeloDeRazonamiento(solicitud);
         int maxIntentos = 3;
 
         for (int intento = 1; intento <= maxIntentos; intento++) {
@@ -91,6 +120,17 @@ public class GroqClient {
 
                 log.debug("Groq OK — tokens_usados: {}",
                         response.getUsage() != null ? response.getUsage().getTotalTokens() : "N/A");
+
+                IaDTO.GroqChoice opcion = response.getChoices().get(0);
+                String contenido = opcion.getMessage() != null ? opcion.getMessage().getContent() : null;
+                if (contenido == null || contenido.isBlank()) {
+                    // Un modelo de razonamiento puede gastar todo el presupuesto pensando
+                    // y devolver el texto vacío (finish_reason = "length").
+                    log.warn("Groq devolvió contenido vacío — modelo: {} | finish_reason: {}",
+                            request.getModel(), opcion.getFinishReason());
+                    throw new BusinessException(
+                            "La IA no alcanzó a generar una respuesta. Intenta de nuevo en unos segundos.");
+                }
 
                 return response;
 
