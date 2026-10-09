@@ -104,6 +104,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/calculadora/**").hasAnyRole("ADMIN", "USER", "BODEGA")
                         .requestMatchers("/api/prediccion/**").hasAnyRole("ADMIN", "USER", "BODEGA")
 
+                        // Mineria de datos (pronostico dinamico, anomalias, patrones) — planeacion: ADMIN y USER
+                        .requestMatchers("/api/mineria/**").hasAnyRole("ADMIN", "USER")
+
                         // IA (Groq) — análisis de solo lectura para todos los roles internos
                         .requestMatchers("/api/ia/**").hasAnyRole("ADMIN", "USER", "BODEGA")
 
