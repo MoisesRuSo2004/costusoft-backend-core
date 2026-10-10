@@ -45,7 +45,8 @@ public class OptimizacionClient {
                     .body(OptimizacionDTO.Response.class);
         } catch (Exception e) {
             log.error("Error llamando optimizacion service [url={}]: {}", serviceUrl, e.getMessage(), e);
-            throw ServicioNoDisponibleException.de("motor de optimización");
+            if (ServicioNoDisponibleException.esTemporal(e)) throw ServicioNoDisponibleException.de("motor de optimización");
+            throw new BusinessException("No se pudo calcular la optimización con estos datos.");
         }
     }
 
@@ -60,6 +61,7 @@ public class OptimizacionClient {
                     .body(OptimizacionDTO.HistorialResponse.class);
         } catch (Exception e) {
             log.error("Error obteniendo historial de optimización: {}", e.getMessage(), e);
+            if (ServicioNoDisponibleException.esTemporal(e)) throw ServicioNoDisponibleException.de("motor de optimización");
             throw new BusinessException("No se pudo obtener el historial de optimización.");
         }
     }
@@ -72,6 +74,7 @@ public class OptimizacionClient {
                     .body(byte[].class);
         } catch (Exception e) {
             log.error("Error descargando PDF de optimización id={}: {}", id, e.getMessage(), e);
+            if (ServicioNoDisponibleException.esTemporal(e)) throw ServicioNoDisponibleException.de("motor de optimización");
             throw new BusinessException("No se pudo generar el PDF de optimización.");
         }
     }

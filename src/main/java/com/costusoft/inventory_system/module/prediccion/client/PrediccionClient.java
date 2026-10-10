@@ -28,8 +28,14 @@ public class PrediccionClient {
             @Value("${prediccion.service.url:http://localhost:8001}") String serviceUrl,
             @Value("${prediccion.service.token:mi-token-secreto-interno-cambiar-en-produccion}") String token) {
 
+        // Render puede tardar ~60 s en despertar el servicio; sin limite, una
+        // peticion colgada dejaria un hilo del servidor esperando para siempre.
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10_000);
+        factory.setReadTimeout(120_000);
+
         this.restClient = RestClient.builder()
-                .requestFactory(new SimpleClientHttpRequestFactory())
+                .requestFactory(factory)
                 .baseUrl(serviceUrl)
                 .defaultHeader("X-API-Token", token)
                 .defaultHeader("Content-Type", "application/json")
@@ -48,7 +54,8 @@ public class PrediccionClient {
                     .body(PrediccionDTO.Response.class);
         } catch (RestClientException e) {
             log.error("Error llamando prediccion service para insumo {}: {}", insumoId, e.getMessage());
-            throw ServicioNoDisponibleException.de("motor de predicción");
+            if (ServicioNoDisponibleException.esTemporal(e)) throw ServicioNoDisponibleException.de("motor de predicción");
+            throw new BusinessException("No se pudo calcular la predicción de este insumo.");
         }
     }
 
@@ -62,7 +69,8 @@ public class PrediccionClient {
                     .body(PrediccionDTO.MasivaResponse.class);
         } catch (RestClientException e) {
             log.error("Error llamando prediccion masiva: {}", e.getMessage());
-            throw ServicioNoDisponibleException.de("motor de predicción");
+            if (ServicioNoDisponibleException.esTemporal(e)) throw ServicioNoDisponibleException.de("motor de predicción");
+            throw new BusinessException("No se pudo calcular la predicción de los insumos.");
         }
     }
 
