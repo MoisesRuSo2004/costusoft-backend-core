@@ -43,4 +43,13 @@ public class NotificacionController {
         notificacionService.eliminarDispositivo(request.getToken(), auth.getName());
         return ResponseEntity.ok(ApiResponse.ok("Dispositivo eliminado", null));
     }
+
+    @Operation(summary = "Enviar aviso de prueba",
+            description = "Envia un aviso solo a los dispositivos del usuario autenticado, para "
+                    + "comprobar que le llegan. Devuelve a cuantos dispositivos se entrego.")
+    @PostMapping("/prueba")
+    public ResponseEntity<ApiResponse<Integer>> prueba(Authentication auth) {
+        int entregados = notificacionService.enviarPrueba(auth.getName());
+        return ResponseEntity.ok(ApiResponse.ok("Aviso de prueba enviado", entregados));
+    }
 }

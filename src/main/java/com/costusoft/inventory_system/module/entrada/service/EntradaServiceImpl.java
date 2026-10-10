@@ -9,7 +9,9 @@ import com.costusoft.inventory_system.repo.EntradaRepository;
 import com.costusoft.inventory_system.repo.InsumoRepository;
 import com.costusoft.inventory_system.repo.ProveedorRepository;
 import com.costusoft.inventory_system.shared.dto.PageDTO;
+import com.costusoft.inventory_system.module.notificacion.evento.MovimientoPendienteEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -41,6 +43,7 @@ public class EntradaServiceImpl implements EntradaService {
     private final InsumoRepository insumoRepository;
     private final ProveedorRepository proveedorRepository;
     private final EntradaMapper entradaMapper;
+    private final ApplicationEventPublisher eventos;
 
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -65,6 +68,9 @@ public class EntradaServiceImpl implements EntradaService {
 
         Entrada guardada = entradaRepository.save(entrada);
         log.info("Entrada PENDIENTE creada — id: {} | detalles: {}", guardada.getId(), detalles.size());
+        // Aviso push a Bodega, que es quien la confirma (se envia tras el commit).
+        eventos.publishEvent(new MovimientoPendienteEvent("ENTRADA", guardada.getId(),
+                guardada.getProveedor() != null ? guardada.getProveedor().getNombre() : null, detalles.size()));
 
         return toResponse(guardada);
     }

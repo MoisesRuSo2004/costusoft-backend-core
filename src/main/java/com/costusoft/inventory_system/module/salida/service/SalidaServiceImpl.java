@@ -10,7 +10,9 @@ import com.costusoft.inventory_system.repo.ColegioRepository;
 import com.costusoft.inventory_system.repo.InsumoRepository;
 import com.costusoft.inventory_system.repo.SalidaRepository;
 import com.costusoft.inventory_system.shared.dto.PageDTO;
+import com.costusoft.inventory_system.module.notificacion.evento.MovimientoPendienteEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -42,6 +44,7 @@ public class SalidaServiceImpl implements SalidaService {
     private final InsumoRepository insumoRepository;
     private final ColegioRepository colegioRepository;
     private final SalidaMapper salidaMapper;
+    private final ApplicationEventPublisher eventos;
 
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -66,6 +69,9 @@ public class SalidaServiceImpl implements SalidaService {
 
         Salida guardada = salidaRepository.save(salida);
         log.info("Salida PENDIENTE creada — id: {} | detalles: {}", guardada.getId(), detalles.size());
+        // Aviso push a Bodega, que es quien la confirma (se envia tras el commit).
+        eventos.publishEvent(new MovimientoPendienteEvent("SALIDA", guardada.getId(),
+                guardada.getColegio() != null ? guardada.getColegio().getNombre() : null, detalles.size()));
 
         return toResponse(guardada);
     }

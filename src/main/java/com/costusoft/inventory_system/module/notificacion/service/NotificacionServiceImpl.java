@@ -6,6 +6,7 @@ import com.costusoft.inventory_system.entity.Usuario;
 import com.costusoft.inventory_system.exception.BusinessException;
 import com.costusoft.inventory_system.exception.ResourceNotFoundException;
 import com.costusoft.inventory_system.module.notificacion.dto.NotificacionDTO;
+import com.costusoft.inventory_system.module.notificacion.evento.MovimientoPendienteEvent;
 import com.costusoft.inventory_system.module.notificacion.evento.PedidoListoEvent;
 import com.costusoft.inventory_system.module.notificacion.push.EnvioPush;
 import com.costusoft.inventory_system.repo.DispositivoNotificacionRepository;
@@ -80,7 +81,7 @@ public class NotificacionServiceImpl implements NotificacionService {
         return envioPush.enviar(
                 dispositivoRepository.tokensDeUsuario(username),
                 "Notificaciones activas",
-                "Así te avisaremos cuando tus pedidos estén listos.",
+                "Así te llegarán los avisos de CostuSoft en este dispositivo.",
                 Map.of("tipo", "PRUEBA"));
     }
 
@@ -95,6 +96,33 @@ public class NotificacionServiceImpl implements NotificacionService {
                 avisarPedidoListo(evento);
             } catch (RuntimeException e) {
                 log.error("No se pudo avisar el pedido listo {}: {}", evento.numeroPedido(), e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Avisa a Bodega que hay una entrada o salida por confirmar.
+     * Corre despues del commit: si el registro falla, no se avisa nada.
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void alMovimientoPendiente(MovimientoPendienteEvent evento) {
+        hiloEnvios.execute(() -> {
+            try {
+                boolean entrada = "ENTRADA".equals(evento.tipo());
+                String insumos = evento.renglones() == 1 ? "1 insumo" : evento.renglones() + " insumos";
+                String detalle = evento.tercero() != null
+                        ? (entrada ? " de " : " para ") + evento.tercero()
+                        : "";
+                envioPush.enviar(
+                        dispositivoRepository.tokensDeRol(Usuario.Rol.BODEGA),
+                        entrada ? "Nueva entrada por confirmar" : "Nueva salida por confirmar",
+                        (entrada ? "Entrada #" : "Salida #") + evento.movimientoId() + detalle + " · " + insumos + ".",
+                        Map.of("tipo", "MOVIMIENTO_PENDIENTE",
+                                "movimiento", evento.tipo(),
+                                "movimientoId", String.valueOf(evento.movimientoId())));
+            } catch (RuntimeException e) {
+                log.error("No se pudo avisar a Bodega del movimiento {} #{}: {}",
+                        evento.tipo(), evento.movimientoId(), e.getMessage());
             }
         });
     }

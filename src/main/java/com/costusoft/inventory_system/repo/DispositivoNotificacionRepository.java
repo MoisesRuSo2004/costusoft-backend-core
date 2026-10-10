@@ -27,7 +27,15 @@ public interface DispositivoNotificacionRepository extends JpaRepository<Disposi
             """)
     List<String> tokensDeColegio(@Param("colegioId") Long colegioId, @Param("rol") Usuario.Rol rol);
 
-    /** Tokens del usuario (para el envio de prueba en perfil dev). */
+    /** Tokens de todos los usuarios activos con el rol indicado (p. ej. Bodega). */
+    @Query("""
+            select d.token from DispositivoNotificacion d
+            where d.usuario.rol = :rol
+              and d.usuario.activo = true
+            """)
+    List<String> tokensDeRol(@Param("rol") Usuario.Rol rol);
+
+    /** Tokens del usuario (para el aviso de prueba). */
     @Query("select d.token from DispositivoNotificacion d where d.usuario.username = :username")
     List<String> tokensDeUsuario(@Param("username") String username);
 
