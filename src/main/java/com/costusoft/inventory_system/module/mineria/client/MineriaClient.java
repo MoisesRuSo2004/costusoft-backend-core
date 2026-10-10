@@ -1,6 +1,7 @@
 package com.costusoft.inventory_system.module.mineria.client;
 
 import com.costusoft.inventory_system.exception.BusinessException;
+import com.costusoft.inventory_system.exception.ServicioNoDisponibleException;
 import com.costusoft.inventory_system.exception.ResourceNotFoundException;
 import com.costusoft.inventory_system.module.mineria.dto.MineriaDTO;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -74,8 +75,7 @@ public class MineriaClient {
             throw new BusinessException("El servicio de mineria de datos rechazo la solicitud.");
         } catch (RestClientException e) {
             log.error("Mineria no disponible ({}): {}", ruta, e.getMessage());
-            throw new BusinessException(
-                    "El servicio de mineria de datos no esta disponible en este momento. Intenta de nuevo en un minuto.");
+            throw ServicioNoDisponibleException.de("motor de minería de datos");
         }
     }
 }
