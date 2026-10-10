@@ -58,6 +58,15 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(ServicioNoDisponibleException.class)
+    public ResponseEntity<ApiResponse<Void>> handleServicioNoDisponible(ServicioNoDisponibleException ex) {
+        log.warn("Servicio de apoyo no disponible: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", "15")
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException ex) {
         log.warn("Regla de negocio violada: {}", ex.getMessage());

@@ -2,6 +2,7 @@ package com.costusoft.inventory_system.module.ia.service;
 
 import com.costusoft.inventory_system.entity.*;
 import com.costusoft.inventory_system.exception.BusinessException;
+import com.costusoft.inventory_system.exception.ServicioNoDisponibleException;
 import com.costusoft.inventory_system.exception.ResourceNotFoundException;
 import com.costusoft.inventory_system.module.ia.client.GroqClient;
 import com.costusoft.inventory_system.module.ia.dto.IaDTO;
@@ -507,6 +508,8 @@ public class IaServiceImpl implements IaService {
                                 case ANALISIS_OPTIMIZACION -> serializarOptimizacion();
                                 case MODELO_MATEMATICO -> serializarModeloMatematico();
                         };
+                } catch (ServicioNoDisponibleException e) {
+                        throw e; // el cliente reintenta (503), no es un error definitivo
                 } catch (Exception e) {
                         log.error("Error obteniendo datos para tipo {}: {}", tipo, e.getMessage());
                         throw new BusinessException(
@@ -688,9 +691,7 @@ public class IaServiceImpl implements IaService {
          */
         private String serializarPrediccionRiesgo() throws Exception {
                 if (!prediccionClient.isServiceUp()) {
-                        throw new BusinessException(
-                                        "El microservicio de predicción no está disponible. " +
-                                                        "Verifique que el servicio Python esté corriendo en el puerto 8001.");
+                        throw ServicioNoDisponibleException.de("motor de predicción");
                 }
 
                 PrediccionDTO.MasivaResponse masiva = prediccionClient.predecirTodos();
@@ -858,9 +859,7 @@ public class IaServiceImpl implements IaService {
 
         private String serializarOptimizacion() throws Exception {
                 if (!optimizacionClient.isServiceUp()) {
-                        throw new BusinessException(
-                                        "El microservicio de optimización no está disponible. " +
-                                                        "Verifique que el servicio Python esté corriendo en el puerto 8002.");
+                        throw ServicioNoDisponibleException.de("motor de optimización");
                 }
 
                 OptimizacionDTO.HistorialResponse historial = optimizacionClient.historial(3, null);
@@ -901,9 +900,7 @@ public class IaServiceImpl implements IaService {
          */
         private String serializarModeloMatematico() throws Exception {
                 if (!optimizacionClient.isServiceUp()) {
-                        throw new BusinessException(
-                                        "El microservicio de optimización no está disponible. " +
-                                                        "Verifique que el servicio Python esté corriendo en el puerto 8002.");
+                        throw ServicioNoDisponibleException.de("motor de optimización");
                 }
 
                 Map<String, Object> resultado = new LinkedHashMap<>();

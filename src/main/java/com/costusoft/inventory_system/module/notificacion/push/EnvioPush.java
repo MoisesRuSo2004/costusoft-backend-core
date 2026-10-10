@@ -22,6 +22,9 @@ import java.util.Set;
 public class EnvioPush {
 
     /** Lote maximo por llamada a Firebase. */
+    /** Debe coincidir con el canal que crea la app movil (canal_avisos.dart). */
+    static final String CANAL_ANDROID = "avisos_costusoft";
+
     private static final int LOTE = 500;
 
     /** Errores que significan "este token ya no sirve". */
@@ -56,6 +59,10 @@ public class EnvioPush {
                             .setPriority(AndroidConfig.Priority.HIGH)
                             .setNotification(AndroidNotification.builder()
                                     .setColor("#0891B2")
+                                    // Canal de importancia alta que crea la app (aparece arriba, con sonido).
+                                    .setChannelId(CANAL_ANDROID)
+                                    .setSound("default")
+                                    .setDefaultVibrateTimings(true)
                                     .build())
                             .build())
                     .build();

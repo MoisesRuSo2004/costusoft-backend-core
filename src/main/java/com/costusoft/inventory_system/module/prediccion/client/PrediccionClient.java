@@ -1,6 +1,7 @@
 package com.costusoft.inventory_system.module.prediccion.client;
 
 import com.costusoft.inventory_system.exception.BusinessException;
+import com.costusoft.inventory_system.exception.ServicioNoDisponibleException;
 import com.costusoft.inventory_system.module.prediccion.dto.PrediccionDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,9 +48,7 @@ public class PrediccionClient {
                     .body(PrediccionDTO.Response.class);
         } catch (RestClientException e) {
             log.error("Error llamando prediccion service para insumo {}: {}", insumoId, e.getMessage());
-            throw new BusinessException(
-                    "El servicio de prediccion no esta disponible. " +
-                            "Verifique que el microservicio Python este corriendo en el puerto 8001.");
+            throw ServicioNoDisponibleException.de("motor de predicción");
         }
     }
 
@@ -63,8 +62,7 @@ public class PrediccionClient {
                     .body(PrediccionDTO.MasivaResponse.class);
         } catch (RestClientException e) {
             log.error("Error llamando prediccion masiva: {}", e.getMessage());
-            throw new BusinessException(
-                    "El servicio de prediccion no esta disponible.");
+            throw ServicioNoDisponibleException.de("motor de predicción");
         }
     }
 

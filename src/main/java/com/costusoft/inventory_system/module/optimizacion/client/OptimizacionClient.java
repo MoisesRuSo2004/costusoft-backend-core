@@ -1,6 +1,7 @@
 package com.costusoft.inventory_system.module.optimizacion.client;
 
 import com.costusoft.inventory_system.exception.BusinessException;
+import com.costusoft.inventory_system.exception.ServicioNoDisponibleException;
 import com.costusoft.inventory_system.module.optimizacion.dto.OptimizacionDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,9 +45,7 @@ public class OptimizacionClient {
                     .body(OptimizacionDTO.Response.class);
         } catch (Exception e) {
             log.error("Error llamando optimizacion service [url={}]: {}", serviceUrl, e.getMessage(), e);
-            throw new BusinessException(
-                    "El servicio de optimización no está disponible en [" + serviceUrl + "]. " +
-                            "Verifique la variable de entorno OPTIMIZACION_SERVICE_URL.");
+            throw ServicioNoDisponibleException.de("motor de optimización");
         }
     }
 
