@@ -1,0 +1,32 @@
+package com.costusoft.inventory_system.module.mineria.controllers;
+
+import com.costusoft.inventory_system.module.mineria.dto.MineriaDTO;
+import com.costusoft.inventory_system.module.mineria.service.MineriaService;
+import com.costusoft.inventory_system.shared.dto.ApiResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/mineria")
+@RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+@Tag(name = "Mineria de datos", description = "Deteccion de anomalias en los movimientos (microservicio Python)")
+public class MineriaController {
+
+    private final MineriaService mineriaService;
+
+    @Operation(summary = "Deteccion de anomalias en movimientos",
+            description = "Movimientos que se alejan de lo habitual para su insumo (cantidades muy altas o "
+                    + "muy bajas, repeticiones, combinaciones raras) con estadistica robusta, Isolation Forest "
+                    + "y LOF. Incluye la validacion del detector con anomalias simuladas en memoria.")
+    @PostMapping("/anomalias")
+    public ResponseEntity<ApiResponse<JsonNode>> anomalias(@Valid @RequestBody MineriaDTO.AnomaliasRequest solicitud) {
+        return ResponseEntity.ok(ApiResponse.ok("Anomalias detectadas", mineriaService.anomalias(solicitud)));
+    }
+}
